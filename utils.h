@@ -21,9 +21,21 @@
 #define UTILS_H
 
 #include <QDBusConnection>
+#include <QDBusMessage>
 
 namespace Utils {
+    enum DBusError {
+        InternalError,
+        NoAccount,
+        QueryError,
+        IncorrectPassword
+    };
+
     QDBusConnection accountsBus();
+    QByteArray generateSalt();
+    QString generateHashedPassword(QString password, int iterations = 10000);
+    bool verifyHashedPassword(QString password, QString hash);
+    void sendDbusError(DBusError error, const QDBusMessage& replyTo);
 }
 
 #endif // UTILS_H

@@ -20,17 +20,38 @@
 #ifndef USER_H
 #define USER_H
 
-#include <QObject>
+#include <QDBusMessage>
+#include <QDBusAbstractAdaptor>
 
 class UserAccount;
 struct UserPrivate;
-class User : public QObject {
+class User : public QDBusAbstractAdaptor {
         Q_OBJECT
+        Q_CLASSINFO("D-Bus Interface", "com.vicr123.accounts.User");
+
+        Q_SCRIPTABLE Q_PROPERTY(quint64 Id READ id)
+        Q_SCRIPTABLE Q_PROPERTY(QString Username READ username NOTIFY UsernameChanged);
+        Q_SCRIPTABLE Q_PROPERTY(QString Email READ email NOTIFY EmailChanged);
+        Q_SCRIPTABLE Q_PROPERTY(bool Verified READ verified NOTIFY VerifiedChanged);
+
     public:
         explicit User(UserAccount* parent);
         ~User();
 
+        quint64 id();
+        QString username();
+        QString email();
+        bool verified();
+
+    public slots:
+        Q_SCRIPTABLE void SetUsername(QString username, const QDBusMessage& message);
+        Q_SCRIPTABLE void SetPassword(QString password, const QDBusMessage& message);
+        Q_SCRIPTABLE void SetEmail(QString email, const QDBusMessage& message);
+
     signals:
+        Q_SCRIPTABLE void UsernameChanged(QString oldUsername, QString newUsername);
+        Q_SCRIPTABLE void EmailChanged(QString newEmail);
+        Q_SCRIPTABLE void VerifiedChanged(bool verified);
 
     private:
         UserPrivate* d;

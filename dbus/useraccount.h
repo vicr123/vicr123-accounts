@@ -27,15 +27,19 @@ struct UserAccountPrivate;
 class UserAccount : public QObject {
         Q_OBJECT
     public:
-        explicit UserAccount(int id);
         ~UserAccount();
 
+        static UserAccount* accountForId(quint64 id);
+
+        quint64 id();
         QDBusObjectPath path();
 
     signals:
 
     private:
         UserAccountPrivate* d;
+
+        explicit UserAccount(quint64 id);
 };
 
 #endif // USERACCOUNT_H

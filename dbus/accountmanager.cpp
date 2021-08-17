@@ -19,8 +19,11 @@
  * *************************************/
 #include "accountmanager.h"
 
+#include <QSqlQuery>
+#include <QSqlDatabase>
 #include "logger.h"
 #include "utils.h"
+#include "useraccount.h"
 
 struct AccountManagerPrivate {
 
@@ -38,6 +41,111 @@ AccountManager::~AccountManager() {
     delete d;
 }
 
-bool AccountManager::Ready() {
-    return true;
+quint64 AccountManager::userIdByUsername(QString username) {
+    QSqlQuery query;
+    query.prepare("SELECT id FROM users WHERE username=:username");
+    query.bindValue(":username", username);
+    query.exec();
+    if (!query.next()) {
+        return 0;
+    }
+
+    return query.value("id").toULongLong();
+}
+
+QDBusObjectPath AccountManager::CreateUser(QString username, QString password, QString email, const QDBusMessage& message) {
+    QSqlQuery query;
+    query.prepare("INSERT INTO users(username, password, email) VALUES(:username, :password, :email) RETURNING id");
+    query.bindValue(":username", username);
+    query.bindValue(":password", Utils::generateHashedPassword(password));
+    query.bindValue(":email", email);
+    if (!query.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return QDBusObjectPath("/");
+    }
+
+    query.next();
+    quint64 id = query.value(0).toULongLong();
+
+    UserAccount* account = UserAccount::accountForId(id);
+    if (!account) {
+        Utils::sendDbusError(Utils::InternalError, message);
+        return QDBusObjectPath("/");
+    }
+
+    return account->path();
+}
+
+QDBusObjectPath AccountManager::UserById(quint64 id, const QDBusMessage& message) {
+    UserAccount* account = UserAccount::accountForId(id);
+    if (!account) {
+        Utils::sendDbusError(Utils::NoAccount, message);
+        return QDBusObjectPath("/");
+    }
+
+    return account->path();
+}
+
+quint64 AccountManager::UserIdByUsername(QString username, const QDBusMessage& message) {
+    quint64 id = userIdByUsername(username);
+    if (id == 0) {
+        Utils::sendDbusError(Utils::NoAccount, message);
+        return 0;
+    }
+
+    return id;
+}
+
+QString AccountManager::ProvisionToken(QString username, QString password, QString application, QVariantMap extraOptions, const QDBusMessage& message) {
+    quint64 id = userIdByUsername(username);
+    if (id == 0) {
+        Utils::sendDbusError(Utils::NoAccount, message);
+        return 0;
+    }
+
+    QSqlQuery userQuery;
+    userQuery.prepare("SELECT * FROM users WHERE id=:id");
+    userQuery.bindValue(":id", id);
+    userQuery.exec();
+    userQuery.next();
+
+    //TODO: Check password resets
+
+    //Ensure the password is correct
+    QString passwordHash = userQuery.value("password").toString();
+    if (!Utils::verifyHashedPassword(password, passwordHash)) {
+        Utils::sendDbusError(Utils::IncorrectPassword, message);
+        return 0;
+    }
+
+    //TODO: Check TOTP
+
+    QString newToken = Utils::generateSalt().toBase64();
+
+    QSqlQuery tokenInsertQuery;
+    tokenInsertQuery.prepare("INSERT INTO tokens(userid, token, application) VALUES(:id, :token, :application)");
+    tokenInsertQuery.bindValue(":id", id);
+    tokenInsertQuery.bindValue(":token", newToken);
+    tokenInsertQuery.bindValue(":application", application);
+    if (!tokenInsertQuery.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return 0;
+    }
+
+    return newToken;
+}
+
+QDBusObjectPath AccountManager::UserForToken(QString token, const QDBusMessage& message) {
+    QSqlQuery query;
+    query.prepare("SELECT * FROM tokens WHERE token=:token");
+    query.bindValue(":token", token);
+    query.exec();
+
+    if (!query.next()) {
+        Utils::sendDbusError(Utils::NoAccount, message);
+        return QDBusObjectPath("/");
+    }
+
+    quint64 id = query.value("userid").toULongLong();
+    return UserById(id, message);
 }

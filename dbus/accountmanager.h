@@ -21,6 +21,8 @@
 #define ACCOUNTMANAGER_H
 
 #include <QDBusAbstractAdaptor>
+#include <QDBusObjectPath>
+#include <QDBusMessage>
 
 struct AccountManagerPrivate;
 class AccountManager : public QObject {
@@ -30,8 +32,14 @@ class AccountManager : public QObject {
         explicit AccountManager();
         ~AccountManager();
 
+        quint64 userIdByUsername(QString username);
+
     public slots:
-        Q_SCRIPTABLE bool Ready();
+        Q_SCRIPTABLE QDBusObjectPath CreateUser(QString username, QString password, QString email, const QDBusMessage& message);
+        Q_SCRIPTABLE QDBusObjectPath UserById(quint64 id, const QDBusMessage& message);
+        Q_SCRIPTABLE quint64 UserIdByUsername(QString username, const QDBusMessage& message);
+        Q_SCRIPTABLE QString ProvisionToken(QString username, QString password, QString application, QVariantMap extraOptions, const QDBusMessage& message);
+        Q_SCRIPTABLE QDBusObjectPath UserForToken(QString token, const QDBusMessage& message);
 
     signals:
 

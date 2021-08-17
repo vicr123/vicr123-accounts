@@ -19,17 +19,95 @@
  * *************************************/
 #include "user.h"
 
+#include <QSqlQuery>
+#include <QSqlError>
 #include "useraccount.h"
+#include "utils.h"
 
 struct UserPrivate {
     UserAccount* parent;
+    QString username;
+    QString email;
+    bool verified;
 };
 
-User::User(UserAccount* parent) : QObject(parent) {
+User::User(UserAccount* parent) : QDBusAbstractAdaptor(parent) {
     d = new UserPrivate();
     d->parent = parent;
+
+    QSqlQuery query;
+    query.prepare("SELECT * FROM users WHERE id=:id");
+    query.bindValue(":id", d->parent->id());
+    query.exec();
+    query.next();
+
+    d->username = query.value("username").toString();
+    d->email = query.value("email").toString();
+    d->verified = query.value("verified").toBool();
 }
 
 User::~User() {
     delete d;
+}
+
+quint64 User::id() {
+    return d->parent->id();
+}
+
+QString User::username() {
+    return d->username;
+}
+
+QString User::email() {
+    return d->email;
+}
+
+bool User::verified() {
+    return d->verified;
+}
+
+void User::SetUsername(QString username, const QDBusMessage& message) {
+    QString oldUsername = d->username;
+
+    QSqlQuery query;
+    query.prepare("UPDATE users SET username=:username WHERE id=:id");
+    query.bindValue(":username", username);
+    query.bindValue(":id", d->parent->id());
+    if (!query.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return;
+    }
+
+    d->username = username;
+    emit UsernameChanged(oldUsername, username);
+}
+
+void User::SetPassword(QString password, const QDBusMessage& message) {
+    QString hashedPassword = Utils::generateHashedPassword(password);
+
+    QSqlQuery query;
+    query.prepare("UPDATE users SET password=:password WHERE id=:id");
+    query.bindValue(":password", hashedPassword);
+    query.bindValue(":id", d->parent->id());
+    if (!query.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return;
+    }
+}
+
+void User::SetEmail(QString email, const QDBusMessage& message) {
+    QSqlQuery query;
+    query.prepare("UPDATE users SET email=:email, verified=false WHERE id=:id");
+    query.bindValue(":email", email);
+    query.bindValue(":id", d->parent->id());
+    if (!query.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return;
+    }
+
+    d->verified = false;
+    d->email = email;
+
+    emit VerifiedChanged(false);
+    emit EmailChanged(email);
 }

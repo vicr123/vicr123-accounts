@@ -39,10 +39,10 @@ int main(int argc, char* argv[]) {
     }
 
     QSettings settings("/etc/vicr123-accounts.conf", QSettings::IniFormat);
-
-    DBusDaemon* daemon = new DBusDaemon(settings.value("dbus/configuration").toString());
-
-    QDBusConnection::connectToBus("unix:path=/tmp/vicr123-accounts-bus", "accounts");
+    if (settings.value("dbus/configuration").toString() == "dedicated") {
+        new DBusDaemon(settings.value("dbus/configuration").toString());
+        QDBusConnection::connectToBus("unix:path=/tmp/vicr123-accounts-bus", "accounts");
+    }
 
     if (!Utils::accountsBus().registerService("com.vicr123.accounts")) {
         Logger::error() << "Could not register service on bus";
