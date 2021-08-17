@@ -28,7 +28,9 @@ namespace Utils {
         InternalError,
         NoAccount,
         QueryError,
-        IncorrectPassword
+        IncorrectPassword,
+        PasswordResetRequired,
+        DisabledAccount
     };
 
     QDBusConnection accountsBus();

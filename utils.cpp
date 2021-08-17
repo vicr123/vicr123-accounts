@@ -60,7 +60,9 @@ void Utils::sendDbusError(DBusError error, const QDBusMessage& replyTo) {
         {InternalError, {"com.vicr123.accounts.Error.InternalError", "Internal Error"}},
         {NoAccount, {"com.vicr123.accounts.Error.NoAccount", "The user account does not exist"}},
         {QueryError, {"com.vicr123.accounts.Error.QueryError", "Could not execute the query on the database"}},
-        {IncorrectPassword, {"com.vicr123.accounts.Error.IncorrectPassword", "The password is incorrect"}}
+        {IncorrectPassword, {"com.vicr123.accounts.Error.IncorrectPassword", "The password is incorrect"}},
+        {PasswordResetRequired, {"com.vicr123.accounts.Error.PasswordResetRequired", "A password reset is required"}},
+        {DisabledAccount, {"com.vicr123.accounts.Error.DisabledAccount", "The account is disabled"}}
     };
 
     QPair<QString, QString> errorStrings = errors.value(error);

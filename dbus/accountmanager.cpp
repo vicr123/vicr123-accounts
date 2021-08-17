@@ -113,6 +113,15 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
 
     //Ensure the password is correct
     QString passwordHash = userQuery.value("password").toString();
+    if (passwordHash == "x") {
+        Utils::sendDbusError(Utils::PasswordResetRequired, message);
+        return 0;
+    }
+    if (passwordHash.startsWith("!")) {
+        Utils::sendDbusError(Utils::DisabledAccount, message);
+        return 0;
+    }
+
     if (!Utils::verifyHashedPassword(password, passwordHash)) {
         Utils::sendDbusError(Utils::IncorrectPassword, message);
         return 0;
