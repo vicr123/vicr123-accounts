@@ -67,6 +67,12 @@ QDBusObjectPath AccountManager::CreateUser(QString username, QString password, Q
     query.next();
     quint64 id = query.value(0).toULongLong();
 
+
+    Utils::sendTemplateEmail("verify", {email}, "en", {
+        {"name", username},
+        {"code", "583827"} //TODO
+    });
+
     UserAccount* account = UserAccount::accountForId(id);
     if (!account) {
         Utils::sendDbusError(Utils::InternalError, message);
@@ -127,7 +133,56 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
         return 0;
     }
 
-    //TODO: Check TOTP
+    //Check TOTP
+    QSqlQuery otpQuery;
+    otpQuery.prepare("SELECT * FROM otp WHERE userid=:id");
+    otpQuery.bindValue(":id", id);
+    if (!otpQuery.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return 0;
+    }
+
+    if (otpQuery.next()) {
+        if (otpQuery.value("enabled").toBool()) {
+            if (!extraOptions.contains("otp")) {
+                Utils::sendDbusError(Utils::TwoFactorRequired, message);
+                return 0;
+            }
+
+            QString otpSecret = otpQuery.value("otpkey").toString();
+            QString otpKey = extraOptions.value("otp").toString();
+            if (!Utils::isValidOtpKey(otpKey, otpSecret)) {
+                //Check the backup keys
+                QSqlQuery backupsQuery;
+                backupsQuery.prepare("SELECT * FROM otpbackup WHERE userid=:id");
+                backupsQuery.bindValue(":id", id);
+                backupsQuery.exec();
+
+                bool foundValidBackupKey = false;
+                while (backupsQuery.next()) {
+                    QString backupKey = backupsQuery.value("backupkey").toString();
+                    if (!backupsQuery.value("used").toBool() && backupKey == otpKey) {
+                        QSqlQuery updateBackupQuery;
+                        updateBackupQuery.prepare("UPDATE otpbackup SET used=:used WHERE userid=:id AND backupkey=:key");
+                        updateBackupQuery.bindValue(":used", true);
+                        updateBackupQuery.bindValue(":id", id);
+                        updateBackupQuery.bindValue(":key", backupKey);
+                        if (!updateBackupQuery.exec()) {
+                            Utils::sendDbusError(Utils::QueryError, message);
+                            return 0;
+                        }
+
+                        foundValidBackupKey = true;
+                    }
+                }
+
+                if (!foundValidBackupKey) {
+                    Utils::sendDbusError(Utils::TwoFactorRequired, message);
+                    return 0;
+                }
+            }
+        }
+    }
 
     QString newToken = Utils::generateSalt().toBase64();
 

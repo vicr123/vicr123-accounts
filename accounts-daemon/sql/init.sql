@@ -36,6 +36,7 @@ CREATE TABLE users (
     email     TEXT
         CONSTRAINT users_email_key
             UNIQUE,
+    locale    TEXT    DEFAULT 'en',
     verified  BOOLEAN DEFAULT FALSE
 );
 

@@ -1,5 +1,5 @@
 QT -= gui
-QT += sql dbus network
+QT += sql dbus network concurrent
 
 CONFIG += c++11 console
 CONFIG -= app_bundle
@@ -11,10 +11,12 @@ CONFIG -= app_bundle
 SOURCES += \
         database.cpp \
         dbus/accountmanager.cpp \
+        dbus/twofactor.cpp \
         dbus/user.cpp \
         dbus/useraccount.cpp \
         dbusdaemon.cpp \
         logger.cpp \
+        mailtemplate.cpp \
         main.cpp \
         utils.cpp
 
@@ -34,11 +36,20 @@ DISTFILES += \
 HEADERS += \
     database.h \
     dbus/accountmanager.h \
+    dbus/twofactor.h \
     dbus/user.h \
     dbus/useraccount.h \
     dbusdaemon.h \
     logger.h \
+    mailtemplate.h \
     utils.h
 
 RESOURCES += \
     resources.qrc
+
+unix:!macx: LIBS += -L$$OUT_PWD/../SMTPEmail/ -lSMTPEmail
+
+INCLUDEPATH += $$PWD/../SMTPEmail
+DEPENDPATH += $$PWD/../SMTPEmail
+
+unix:!macx: PRE_TARGETDEPS += $$OUT_PWD/../SMTPEmail/libSMTPEmail.a

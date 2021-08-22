@@ -1,0 +1,4 @@
+[submodule "SMTPEmail"]
+	path = SMTPEmail
+	url = https://github.com/vicr123/vicr123-accounts.git
+	branch = smtpclient

@@ -30,7 +30,10 @@ namespace Utils {
         QueryError,
         IncorrectPassword,
         PasswordResetRequired,
-        DisabledAccount
+        DisabledAccount,
+        TwoFactorEnabled,
+        TwoFactorDisabled,
+        TwoFactorRequired
     };
 
     QDBusConnection accountsBus();
@@ -38,6 +41,10 @@ namespace Utils {
     QString generateHashedPassword(QString password, int iterations = 10000);
     bool verifyHashedPassword(QString password, QString hash);
     void sendDbusError(DBusError error, const QDBusMessage& replyTo);
+    void sendTemplateEmail(QString templateName, QList<QString> recipients, QString locale, QMap<QString, QString> replacements);
+    QString otpKey(QString sharedKey, int offset = 0);
+    QString generateSharedOtpKey();
+    bool isValidOtpKey(QString otpKey, QString sharedKey);
 }
 
 #endif // UTILS_H

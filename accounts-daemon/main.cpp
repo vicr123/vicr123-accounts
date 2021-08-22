@@ -50,5 +50,8 @@ int main(int argc, char* argv[]) {
 
     AccountManager* accountManager = new AccountManager();
 
+    QString test = Utils::otpKey("JBSWY3DPEHPK3PXP");
+    QString test2 = Utils::generateSharedOtpKey();
+
     return a.exec();
 }

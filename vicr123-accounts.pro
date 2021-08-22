@@ -1,3 +1,10 @@
 TEMPLATE = subdirs
 
-SUBDIRS += accounts-daemon
+smtp.subdir = SMTPEmail
+
+daemon.subdir = accounts-daemon
+daemon.depends = smtp
+
+SUBDIRS += smtp \
+    daemon
+

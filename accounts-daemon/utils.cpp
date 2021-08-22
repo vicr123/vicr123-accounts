@@ -21,7 +21,13 @@
 #include <QRandomGenerator64>
 #include <QPasswordDigestor>
 #include <QSettings>
+#include <QtConcurrent>
+#include <QMessageAuthenticationCode>
+#include "logger.h"
 #include "utils.h"
+#include "mailtemplate.h"
+
+#include <src/SmtpMime>
 
 QDBusConnection Utils::accountsBus() {
     QSettings settings("/etc/vicr123-accounts.conf", QSettings::IniFormat);
@@ -62,7 +68,10 @@ void Utils::sendDbusError(DBusError error, const QDBusMessage& replyTo) {
         {QueryError, {"com.vicr123.accounts.Error.QueryError", "Could not execute the query on the database"}},
         {IncorrectPassword, {"com.vicr123.accounts.Error.IncorrectPassword", "The password is incorrect"}},
         {PasswordResetRequired, {"com.vicr123.accounts.Error.PasswordResetRequired", "A password reset is required"}},
-        {DisabledAccount, {"com.vicr123.accounts.Error.DisabledAccount", "The account is disabled"}}
+        {DisabledAccount, {"com.vicr123.accounts.Error.DisabledAccount", "The account is disabled"}},
+        {TwoFactorEnabled, {"com.vicr123.accounts.Error.TwoFactorEnabled", "Two Factor Authentication is already enabled"}},
+        {TwoFactorDisabled, {"com.vicr123.accounts.Error.TwoFactorDisabled", "Two Factor Authentication is already disabled"}},
+        {TwoFactorRequired, {"com.vicr123.accounts.Error.TwoFactorRequired", "Two Factor Authentication is required"}}
     };
 
     QPair<QString, QString> errorStrings = errors.value(error);
@@ -75,6 +84,113 @@ QByteArray Utils::generateSalt() {
     QRandomGenerator::global()->fillRange(saltBytes);
     saltBytes[32] = '\0';
 
-    QByteArray saltByteArray(reinterpret_cast<char*>(saltBytes));
+    QByteArray saltByteArray(reinterpret_cast<char*>(saltBytes), 32);
     return saltByteArray;
+}
+
+void Utils::sendTemplateEmail(QString templateName, QList<QString> recipients, QString locale, QMap<QString, QString> replacements) {
+    QFuture<void> future = QtConcurrent::run([ = ](QPromise<void>& promise) {
+        QString securityTypeString = qEnvironmentVariable("SMTP_SECURITY");
+        SmtpClient::ConnectionType securityType;
+        if (securityTypeString == "STARTTLS") {
+            securityType = SmtpClient::TlsConnection;
+        } else if (securityTypeString == "true") {
+            securityType = SmtpClient::SslConnection;
+        } else {
+            securityType = SmtpClient::TcpConnection;
+        }
+        SmtpClient client(qEnvironmentVariable("SMTP_HOST"), qEnvironmentVariableIntValue("SMTP_PORT"), securityType);
+
+        client.setUser(qEnvironmentVariable("SMTP_USERNAME"));
+        client.setPassword(qEnvironmentVariable("SMTP_PASSWORD"));
+        client.setAuthMethod(SmtpClient::AuthLogin);
+
+        MimeMessage message;
+        message.setSender(new EmailAddress(qEnvironmentVariable("SMTP_SENDER_EMAIL"), qEnvironmentVariable("SMTP_SENDER_NAME")));
+        for (QString recipient : recipients) {
+            message.addRecipient(new EmailAddress(recipient));
+        }
+
+        MailTemplate mailTemplate(templateName, locale, replacements);
+        QSharedPointer<MimePart> htmlPart = mailTemplate.htmlPart();
+        QSharedPointer<MimePart> textPart = mailTemplate.textPart();
+
+        message.setSubject(mailTemplate.subject());
+        message.addPart(htmlPart.data());
+        message.addPart(textPart.data());
+
+        if (!client.connectToHost()) {
+            Logger::error() << "Could not connect to SMTP server";
+            promise.finish();
+            return;
+        }
+
+        if (!client.login()) {
+            Logger::error() << "Could not log in to SMTP server";
+            promise.finish();
+            return;
+        }
+
+        if (!client.sendMail(message)) {
+            Logger::error() << "Could not send email";
+            promise.finish();
+            return;
+        }
+
+        client.quit();
+
+        promise.finish();
+    });
+}
+
+QString Utils::otpKey(QString sharedKey, int offset) {
+    char* decodedKey = new char[sharedKey.length() * 5 / 8];
+    std::fill(decodedKey, decodedKey + sharedKey.length() * 5 / 8, 0);
+    int next = 0;
+    for (QChar c : sharedKey.toUpper()) {
+        int bits;
+        if (c.isNumber()) {
+            bits = c.toLatin1() - '2' + 26;
+        } else {
+            bits = c.toLatin1() - 'A';
+        }
+
+        for (int i = 4; i >= 0; i--) {
+            decodedKey[next / 8] |= (bits >> i & 0b1) << (7 - (next % 8));
+            next++;
+        }
+    }
+
+    QByteArray decodedBytes = QByteArray(reinterpret_cast<char*>(decodedKey), sharedKey.length() * 5 / 8);
+    for (int i = 0; i < decodedBytes.size(); i++) {
+        decodedBytes.data()[i] = qFromBigEndian(decodedBytes.data()[i]);
+    }
+
+    delete[] decodedKey;
+
+    quint64 currentNumber = qToBigEndian(static_cast<quint64>(QDateTime::currentSecsSinceEpoch() / 30) + offset);
+    QByteArray hmac = QMessageAuthenticationCode::hash(QByteArray(reinterpret_cast<char*>(&currentNumber), sizeof(quint64)), decodedBytes, QCryptographicHash::Sha1);
+    char truncationStart = hmac.at(hmac.length() - 1) & 0xf;
+
+    qint32 number = ((hmac.at(truncationStart) & 0x7f) << 24) |
+        (hmac.at(truncationStart + 1) & 0xff) << 16 |
+        (hmac.at(truncationStart + 2) & 0xff) << 8 |
+        (hmac.at(truncationStart + 3) & 0xff);
+
+    return QString::number(number % 1000000).rightJustified(6, '0', true);
+}
+
+QString Utils::generateSharedOtpKey() {
+    QString validLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    QString key;
+    for (int i = 0; i < 32; i++) {
+        key.append(validLetters.at(QRandomGenerator::securelySeeded().bounded(validLetters.count())));
+    }
+    return key;
+}
+
+bool Utils::isValidOtpKey(QString otpKey, QString sharedKey) {
+    return otpKey == Utils::otpKey(sharedKey, -1) ||
+        otpKey == Utils::otpKey(sharedKey, 0) ||
+        otpKey == Utils::otpKey(sharedKey, 1);
 }
