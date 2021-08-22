@@ -80,12 +80,13 @@ void Utils::sendDbusError(DBusError error, const QDBusMessage& replyTo) {
 }
 
 QByteArray Utils::generateSalt() {
-    quint32 saltBytes[33];
-    QRandomGenerator::global()->fillRange(saltBytes);
-    saltBytes[32] = '\0';
+//    quint32 saltBytes[33];
+//    QRandomGenerator::global()->fillRange(saltBytes);
+//    saltBytes[32] = '\0';
 
-    QByteArray saltByteArray(reinterpret_cast<char*>(saltBytes), 32);
-    return saltByteArray;
+//    QByteArray saltByteArray(reinterpret_cast<char*>(saltBytes), sizeof(quint32) / sizeof(char) * 32);
+//    return saltByteArray;
+    return generateRandomBytes(64);
 }
 
 void Utils::sendTemplateEmail(QString templateName, QList<QString> recipients, QString locale, QMap<QString, QString> replacements) {
@@ -193,4 +194,14 @@ bool Utils::isValidOtpKey(QString otpKey, QString sharedKey) {
     return otpKey == Utils::otpKey(sharedKey, -1) ||
         otpKey == Utils::otpKey(sharedKey, 0) ||
         otpKey == Utils::otpKey(sharedKey, 1);
+}
+
+QByteArray Utils::generateRandomBytes(int count) {
+    size_t elementsCount = ((count / 4) + 1);
+    quint32* bytes = reinterpret_cast<quint32*>(malloc(sizeof(quint32) * elementsCount));
+    QRandomGenerator::global()->fillRange(bytes, elementsCount);
+
+    QByteArray randomByteArray(reinterpret_cast<char*>(bytes), count);
+    free(bytes);
+    return randomByteArray;
 }

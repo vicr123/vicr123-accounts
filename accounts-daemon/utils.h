@@ -37,6 +37,7 @@ namespace Utils {
     };
 
     QDBusConnection accountsBus();
+    QByteArray generateRandomBytes(int count);
     QByteArray generateSalt();
     QString generateHashedPassword(QString password, int iterations = 10000);
     bool verifyHashedPassword(QString password, QString hash);

@@ -11,6 +11,7 @@ CONFIG -= app_bundle
 SOURCES += \
         database.cpp \
         dbus/accountmanager.cpp \
+        dbus/passwordreset.cpp \
         dbus/twofactor.cpp \
         dbus/user.cpp \
         dbus/useraccount.cpp \
@@ -36,6 +37,7 @@ DISTFILES += \
 HEADERS += \
     database.h \
     dbus/accountmanager.h \
+    dbus/passwordreset.h \
     dbus/twofactor.h \
     dbus/user.h \
     dbus/useraccount.h \

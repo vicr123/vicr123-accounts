@@ -21,6 +21,7 @@
 
 #include <QSqlQuery>
 #include <QSqlDatabase>
+#include <QDateTime>
 #include "logger.h"
 #include "utils.h"
 #include "useraccount.h"
@@ -115,19 +116,57 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
     userQuery.exec();
     userQuery.next();
 
-    //TODO: Check password resets
-
     //Ensure the password is correct
     QString passwordHash = userQuery.value("password").toString();
-    if (passwordHash == "x") {
-        Utils::sendDbusError(Utils::PasswordResetRequired, message);
-        return 0;
-    }
     if (passwordHash.startsWith("!")) {
         Utils::sendDbusError(Utils::DisabledAccount, message);
         return 0;
     }
 
+    //Now check for password resets
+    {
+        QSqlQuery resetQuery;
+        resetQuery.prepare("SELECT * FROM passwordresets WHERE userid=:id");
+        resetQuery.bindValue(":id", id);
+        resetQuery.exec();
+        if (resetQuery.next()) {
+            if (resetQuery.value("expiry").toLongLong() > QDateTime::currentMSecsSinceEpoch()) {
+                QString temporaryPassword = resetQuery.value("temporarypassword").toString();
+                if (Utils::verifyHashedPassword(password, temporaryPassword)) {
+                    if (!extraOptions.contains("newPassword")) {
+                        Utils::sendDbusError(Utils::PasswordResetRequired, message);
+                        return 0;
+                    }
+
+                    QString newPassword = extraOptions.value("newPassword").toString();
+
+                    //Set the new password on this user account
+                    //TODO: use existing code in User class
+                    passwordHash = Utils::generateHashedPassword(newPassword);
+                    QSqlQuery updateQuery;
+                    updateQuery.prepare("UPDATE users SET password=:password WHERE id=:id");
+                    updateQuery.bindValue(":id", id);
+                    updateQuery.bindValue(":password", passwordHash);
+                    if (!updateQuery.exec()) {
+                        Utils::sendDbusError(Utils::QueryError, message);
+                        return 0;
+                    }
+
+                    QSqlQuery deleteQuery;
+                    deleteQuery.prepare("DELETE FROM passwordresets WHERE userid=:id");
+                    deleteQuery.bindValue(":id", id);
+                    deleteQuery.exec();
+
+                    password = newPassword;
+                }
+            }
+        }
+    }
+
+    if (passwordHash == "x") {
+        Utils::sendDbusError(Utils::PasswordResetRequired, message);
+        return 0;
+    }
     if (!Utils::verifyHashedPassword(password, passwordHash)) {
         Utils::sendDbusError(Utils::IncorrectPassword, message);
         return 0;
@@ -144,13 +183,13 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
 
     if (otpQuery.next()) {
         if (otpQuery.value("enabled").toBool()) {
-            if (!extraOptions.contains("otp")) {
+            if (!extraOptions.contains("otpToken")) {
                 Utils::sendDbusError(Utils::TwoFactorRequired, message);
                 return 0;
             }
 
             QString otpSecret = otpQuery.value("otpkey").toString();
-            QString otpKey = extraOptions.value("otp").toString();
+            QString otpKey = extraOptions.value("otpToken").toString();
             if (!Utils::isValidOtpKey(otpKey, otpSecret)) {
                 //Check the backup keys
                 QSqlQuery backupsQuery;

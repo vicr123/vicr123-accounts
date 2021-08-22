@@ -23,6 +23,7 @@
 #include <QSqlQuery>
 #include "user.h"
 #include "twofactor.h"
+#include "passwordreset.h"
 #include "utils.h"
 
 struct UserAccountPrivate {
@@ -39,6 +40,7 @@ UserAccount::UserAccount(quint64 id) : QObject(nullptr) {
 
     new User(this);
     new TwoFactor(this);
+    new PasswordReset(this);
 
     Utils::accountsBus().registerObject(this->path().path(), this);
 }
