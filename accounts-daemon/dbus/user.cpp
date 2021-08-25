@@ -21,6 +21,7 @@
 
 #include <QSqlQuery>
 #include <QSqlError>
+#include <QDateTime>
 #include "useraccount.h"
 #include "utils.h"
 
@@ -110,4 +111,52 @@ void User::SetEmail(QString email, const QDBusMessage& message) {
 
     emit VerifiedChanged(false);
     emit EmailChanged(email);
+}
+
+void User::ResendVerificationEmail(const QDBusMessage& message) {
+    if (!Utils::sendVerificationEmail(d->parent->id())) {
+        Utils::sendDbusError(Utils::InternalError, message);
+        return;
+    }
+}
+
+void User::VerifyEmail(QString verificationCode, const QDBusMessage& message) {
+    QSqlDatabase db;
+    db.transaction();
+
+    QSqlQuery query;
+    query.prepare("DELETE FROM verifications WHERE userid=:id AND verificationstring=:code AND expiry > :now");
+    query.bindValue(":id", d->parent->id());
+    query.bindValue(":code", verificationCode);
+    query.bindValue(":now", QDateTime::currentMSecsSinceEpoch());
+
+    if (!query.exec()) {
+        db.rollback();
+        Utils::sendDbusError(Utils::QueryError, message);
+        return;
+    }
+
+    if (query.numRowsAffected() == 0) {
+        db.rollback();
+        Utils::sendDbusError(Utils::VerificationCodeIncorrect, message);
+        return;
+    }
+
+    QSqlQuery updateUserQuery;
+    updateUserQuery.prepare("UPDATE users SET verified=:verified WHERE id=:id");
+    updateUserQuery.bindValue(":verified", true);
+    updateUserQuery.bindValue(":id", d->parent->id());
+    if (!updateUserQuery.exec()) {
+        db.rollback();
+        Utils::sendDbusError(Utils::QueryError, message);
+        return;
+    }
+
+    if (db.commit()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return;
+    }
+
+    d->verified = true;
+    emit VerifiedChanged(true);
 }

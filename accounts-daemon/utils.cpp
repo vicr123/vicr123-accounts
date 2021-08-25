@@ -23,6 +23,7 @@
 #include <QSettings>
 #include <QtConcurrent>
 #include <QMessageAuthenticationCode>
+#include <QSqlQuery>
 #include "logger.h"
 #include "utils.h"
 #include "mailtemplate.h"
@@ -31,7 +32,7 @@
 
 QDBusConnection Utils::accountsBus() {
     QSettings settings("/etc/vicr123-accounts.conf", QSettings::IniFormat);
-    if (settings.value("dbus/configuration").toString() == "dedicated") {
+    if (settings.value("dbus/bus").toString() == "dedicated") {
         return QDBusConnection("accounts");
     } else {
         return QDBusConnection::sessionBus();
@@ -71,7 +72,8 @@ void Utils::sendDbusError(DBusError error, const QDBusMessage& replyTo) {
         {DisabledAccount, {"com.vicr123.accounts.Error.DisabledAccount", "The account is disabled"}},
         {TwoFactorEnabled, {"com.vicr123.accounts.Error.TwoFactorEnabled", "Two Factor Authentication is already enabled"}},
         {TwoFactorDisabled, {"com.vicr123.accounts.Error.TwoFactorDisabled", "Two Factor Authentication is already disabled"}},
-        {TwoFactorRequired, {"com.vicr123.accounts.Error.TwoFactorRequired", "Two Factor Authentication is required"}}
+        {TwoFactorRequired, {"com.vicr123.accounts.Error.TwoFactorRequired", "Two Factor Authentication is required"}},
+        {VerificationCodeIncorrect, {"com.vicr123.accounts.Error.VerificationCodeIncorrect", "The Verification code is incorrect"}}
     };
 
     QPair<QString, QString> errorStrings = errors.value(error);
@@ -204,4 +206,27 @@ QByteArray Utils::generateRandomBytes(int count) {
     QByteArray randomByteArray(reinterpret_cast<char*>(bytes), count);
     free(bytes);
     return randomByteArray;
+}
+
+bool Utils::sendVerificationEmail(quint64 user) {
+    QSqlQuery query;
+    query.prepare("SELECT * FROM users WHERE id=:id");
+    query.bindValue(":id", user);
+    query.exec();
+    if (!query.next()) return false;
+
+    QString code = QString::number(QRandomGenerator::system()->bounded(999999)).rightJustified(6, '0');
+
+    QSqlQuery verificationsQuery;
+    verificationsQuery.prepare("INSERT INTO verifications(userid, verificationstring, expiry) VALUES(:id, :code, :expiry) ON CONFLICT ON CONSTRAINT pk_verifications DO UPDATE SET verificationstring=:code, expiry=:expiry");
+    verificationsQuery.bindValue(":id", user);
+    verificationsQuery.bindValue(":code", code);
+    verificationsQuery.bindValue(":expiry", QDateTime::currentMSecsSinceEpoch() + 1000 * 60 * 60 * 24);
+    if (!verificationsQuery.exec()) return false;
+
+    Utils::sendTemplateEmail("verify", {query.value("email").toString()}, "en", {
+        {"name", query.value("username").toString()},
+        {"code", code}
+    });
+    return true;
 }

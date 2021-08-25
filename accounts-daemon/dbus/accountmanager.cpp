@@ -68,11 +68,8 @@ QDBusObjectPath AccountManager::CreateUser(QString username, QString password, Q
     query.next();
     quint64 id = query.value(0).toULongLong();
 
-
-    Utils::sendTemplateEmail("verify", {email}, "en", {
-        {"name", username},
-        {"code", "583827"} //TODO
-    });
+    //Ignore the return value here: if the email doesn't get through they can request a new one later
+    Utils::sendVerificationEmail(id);
 
     UserAccount* account = UserAccount::accountForId(id);
     if (!account) {
@@ -251,4 +248,20 @@ QDBusObjectPath AccountManager::UserForToken(QString token, const QDBusMessage& 
 
     quint64 id = query.value("userid").toULongLong();
     return UserById(id, message);
+}
+
+QList<quint64> AccountManager::AllUsers(const QDBusMessage& message) {
+    QSqlQuery query;
+    query.prepare("SELECT * FROM users");
+
+    if (!query.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return {};
+    }
+
+    QList<quint64> users;
+    while (query.next()) {
+        users.append(query.value("id").toULongLong());
+    }
+    return users;
 }

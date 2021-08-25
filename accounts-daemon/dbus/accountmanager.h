@@ -40,6 +40,7 @@ class AccountManager : public QObject {
         Q_SCRIPTABLE quint64 UserIdByUsername(QString username, const QDBusMessage& message);
         Q_SCRIPTABLE QString ProvisionToken(QString username, QString password, QString application, QVariantMap extraOptions, const QDBusMessage& message);
         Q_SCRIPTABLE QDBusObjectPath UserForToken(QString token, const QDBusMessage& message);
+        Q_SCRIPTABLE QList<quint64> AllUsers(const QDBusMessage& message);
 
     signals:
 
