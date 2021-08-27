@@ -39,7 +39,7 @@ MailTemplate::MailTemplate(QString templateName, QString locale, QMap<QString, Q
     d->replacements = replacements;
 
     QSettings settings("/etc/vicr123-accounts.conf", QSettings::IniFormat);
-    QDir maildir(settings.value("mail/maildir").toString());
+    QDir maildir(qEnvironmentVariable("MAIL_MAILDIR", settings.value("mail/maildir").toString()));
 
     QFile mailfile = maildir.absoluteFilePath(QStringLiteral("%1/%2").arg(locale, templateName));
     if (!mailfile.exists()) mailfile.setFileName(maildir.absoluteFilePath(QStringLiteral("%1/%2").arg(locale, templateName)));
