@@ -68,6 +68,11 @@ bool User::verified() {
 }
 
 void User::SetUsername(QString username, const QDBusMessage& message) {
+    if (username.isEmpty()) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return;
+    }
+
     QString oldUsername = d->username;
 
     QSqlQuery query;
@@ -84,6 +89,11 @@ void User::SetUsername(QString username, const QDBusMessage& message) {
 }
 
 void User::SetPassword(QString password, const QDBusMessage& message) {
+    if (password.isEmpty()) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return;
+    }
+
     QString hashedPassword = Utils::generateHashedPassword(password);
 
     QSqlQuery query;
@@ -97,6 +107,11 @@ void User::SetPassword(QString password, const QDBusMessage& message) {
 }
 
 void User::SetEmail(QString email, const QDBusMessage& message) {
+    if (!Utils::isValidEmailAddress(email)) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return;
+    }
+
     QSqlQuery query;
     query.prepare("UPDATE users SET email=:email, verified=false WHERE id=:id");
     query.bindValue(":email", email);
@@ -121,6 +136,11 @@ void User::ResendVerificationEmail(const QDBusMessage& message) {
 }
 
 void User::VerifyEmail(QString verificationCode, const QDBusMessage& message) {
+    if (verificationCode.isEmpty()) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return;
+    }
+
     QSqlDatabase db;
     db.transaction();
 
@@ -159,4 +179,26 @@ void User::VerifyEmail(QString verificationCode, const QDBusMessage& message) {
 
     d->verified = true;
     emit VerifiedChanged(true);
+}
+
+bool User::VerifyPassword(QString password, const QDBusMessage& message) {
+    if (password.isEmpty()) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return false;
+    }
+
+    QSqlQuery userQuery;
+    userQuery.prepare("SELECT * FROM users WHERE id=:id");
+    userQuery.bindValue(":id", d->parent->id());
+    userQuery.exec();
+    userQuery.next();
+
+    //Ensure the password is correct
+    QString passwordHash = userQuery.value("password").toString();
+    if (passwordHash.startsWith("!")) {
+        Utils::sendDbusError(Utils::DisabledAccount, message);
+        return false;
+    }
+
+    return Utils::verifyHashedPassword(password, passwordHash);
 }

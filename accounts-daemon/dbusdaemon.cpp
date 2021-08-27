@@ -23,6 +23,7 @@
 #include <signal.h>
 #include <QProcess>
 #include <QThread>
+#include <QFile>
 
 struct DBusDaemonPrivate {
     QProcess* daemonProcess;

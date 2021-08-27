@@ -34,7 +34,8 @@ namespace Utils {
         TwoFactorEnabled,
         TwoFactorDisabled,
         TwoFactorRequired,
-        VerificationCodeIncorrect
+        VerificationCodeIncorrect,
+        InvalidInput
     };
 
     QDBusConnection accountsBus();
@@ -48,6 +49,7 @@ namespace Utils {
     QString generateSharedOtpKey();
     bool isValidOtpKey(QString otpKey, QString sharedKey);
     bool sendVerificationEmail(quint64 user);
+    bool isValidEmailAddress(QString email);
 }
 
 #endif // UTILS_H

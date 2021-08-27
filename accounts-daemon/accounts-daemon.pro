@@ -1,5 +1,6 @@
 QT -= gui
 QT += sql dbus network concurrent
+TARGET = vicr123-accounts
 
 CONFIG += c++11 console
 CONFIG -= app_bundle
@@ -24,10 +25,13 @@ SOURCES += \
 unix {
     target.path = /usr/bin
 
-    conf.files = vicr123-accounts.conf
+    conf.files = vicr123-accounts.conf vicr123-accounts-dbus-config.conf
     conf.path = /etc
 
-    INSTALLS += target conf
+    mail.files = mail
+    mail.path = /usr/share/vicr123-accounts
+
+    INSTALLS += target conf mail
 }
 
 DISTFILES += \

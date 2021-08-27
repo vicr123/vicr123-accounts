@@ -73,11 +73,13 @@ void Utils::sendDbusError(DBusError error, const QDBusMessage& replyTo) {
         {TwoFactorEnabled, {"com.vicr123.accounts.Error.TwoFactorEnabled", "Two Factor Authentication is already enabled"}},
         {TwoFactorDisabled, {"com.vicr123.accounts.Error.TwoFactorDisabled", "Two Factor Authentication is already disabled"}},
         {TwoFactorRequired, {"com.vicr123.accounts.Error.TwoFactorRequired", "Two Factor Authentication is required"}},
-        {VerificationCodeIncorrect, {"com.vicr123.accounts.Error.VerificationCodeIncorrect", "The Verification code is incorrect"}}
+        {VerificationCodeIncorrect, {"com.vicr123.accounts.Error.VerificationCodeIncorrect", "The Verification code is incorrect"}},
+        {InvalidInput, {"com.vicr123.accounts.Error.InvalidInput", "The input is invalid"}}
     };
 
     QPair<QString, QString> errorStrings = errors.value(error);
 
+    replyTo.setDelayedReply(true);
     Utils::accountsBus().send(replyTo.createErrorReply(errorStrings.first, errorStrings.second));
 }
 
@@ -228,5 +230,10 @@ bool Utils::sendVerificationEmail(quint64 user) {
         {"name", query.value("username").toString()},
         {"code", code}
     });
+    return true;
+}
+
+bool Utils::isValidEmailAddress(QString email) {
+    if (email.isEmpty()) return false;
     return true;
 }

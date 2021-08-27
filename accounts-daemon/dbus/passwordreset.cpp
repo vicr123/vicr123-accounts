@@ -106,6 +106,9 @@ void PasswordReset::ResetPassword(QString type, QVariantMap challenge, const QDB
             //Issue the password reset
             issuePasswordReset();
         }
+    } else {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return;
     }
 }
 

@@ -49,6 +49,7 @@ class User : public QDBusAbstractAdaptor {
         Q_SCRIPTABLE void SetEmail(QString email, const QDBusMessage& message);
         Q_SCRIPTABLE void ResendVerificationEmail(const QDBusMessage& message);
         Q_SCRIPTABLE void VerifyEmail(QString verificationCode, const QDBusMessage& message);
+        Q_SCRIPTABLE bool VerifyPassword(QString password, const QDBusMessage& message);
 
     signals:
         Q_SCRIPTABLE void UsernameChanged(QString oldUsername, QString newUsername);

@@ -55,6 +55,11 @@ quint64 AccountManager::userIdByUsername(QString username) {
 }
 
 QDBusObjectPath AccountManager::CreateUser(QString username, QString password, QString email, const QDBusMessage& message) {
+    if (username.isEmpty() || password.isEmpty() || email.isEmpty() || !Utils::isValidEmailAddress(email)) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return QDBusObjectPath("/");
+    }
+
     QSqlQuery query;
     query.prepare("INSERT INTO users(username, password, email) VALUES(:username, :password, :email) RETURNING id");
     query.bindValue(":username", username);
@@ -101,6 +106,11 @@ quint64 AccountManager::UserIdByUsername(QString username, const QDBusMessage& m
 }
 
 QString AccountManager::ProvisionToken(QString username, QString password, QString application, QVariantMap extraOptions, const QDBusMessage& message) {
+    if (username.isEmpty() || password.isEmpty() || application.isEmpty()) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return 0;
+    }
+
     quint64 id = userIdByUsername(username);
     if (id == 0) {
         Utils::sendDbusError(Utils::NoAccount, message);

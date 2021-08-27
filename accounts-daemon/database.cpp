@@ -23,6 +23,7 @@
 #include <QSqlDatabase>
 #include <QFile>
 #include <QSqlQuery>
+#include <QThread>
 #include "logger.h"
 
 Database::Database(QObject* parent) : QObject(parent) {
@@ -36,14 +37,16 @@ bool Database::init() {
         return false;
     }
 
-    QSqlDatabase db = QSqlDatabase::addDatabase(settings.value("database/driver").toString());
-    db.setHostName(settings.value("database/hostname").toString());
-    db.setDatabaseName(settings.value("database/database").toString());
-    db.setUserName(settings.value("database/username").toString());
-    db.setPassword(settings.value("database/password").toString());
-    if (!db.open()) {
-        Logger::error() << "Could not connect to the database.";
-        return false;
+    QSqlDatabase db = QSqlDatabase::addDatabase(qEnvironmentVariable("ACCOUNTS_DB_DRIVER", settings.value("database/driver").toString()));
+    db.setHostName(qEnvironmentVariable("ACCOUNTS_DB_HOSTNAME", settings.value("database/hostname").toString()));
+    db.setDatabaseName(qEnvironmentVariable("ACCOUNTS_DB_DATABASE", settings.value("database/database").toString()));
+    db.setUserName(qEnvironmentVariable("ACCOUNTS_DB_USERNAME", settings.value("database/username").toString()));
+    db.setPassword(qEnvironmentVariable("ACCOUNTS_DB_PASSWORD", settings.value("database/password").toString()));
+
+    while (!db.open()) {
+        Logger::error() << "Could not connect to the database\n";
+        Logger::error() << "Trying again after 5 seoconds.\n";
+        QThread::sleep(5);
     }
 
     //Initialise the database
