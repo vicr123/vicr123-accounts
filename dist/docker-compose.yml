@@ -1,0 +1,18 @@
+version: "3"
+services:
+    pg:
+        image: postgres:13
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: secret123
+            POSTGRES_USER: accounts
+    accounts:
+        build: ..
+        depends_on: [pg]
+        environment:
+            ACCOUNTS_DB_HOSTNAME: pg
+            ACCOUNTS_DB_USERNAME: accounts
+            ACCOUNTS_DB_DATABASE: accounts
+            ACCOUNTS_DB_PASSWORD: secret123
+        volumes:
+            - "/var/vicr123-accounts:/var/vicr123-accounts"
