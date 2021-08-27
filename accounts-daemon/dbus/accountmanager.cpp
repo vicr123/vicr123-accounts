@@ -171,7 +171,7 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
     }
 
     if (passwordHash == "x") {
-        Utils::sendDbusError(Utils::PasswordResetRequired, message);
+        Utils::sendDbusError(Utils::PasswordResetRequestRequired, message);
         return 0;
     }
     if (!Utils::verifyHashedPassword(password, passwordHash)) {

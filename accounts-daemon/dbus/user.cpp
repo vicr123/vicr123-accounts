@@ -202,3 +202,14 @@ bool User::VerifyPassword(QString password, const QDBusMessage& message) {
 
     return Utils::verifyHashedPassword(password, passwordHash);
 }
+
+void User::ErasePassword(const QDBusMessage& message) {
+    QSqlQuery query;
+    query.prepare("UPDATE users SET password=:password WHERE id=:id");
+    query.bindValue(":password", "x");
+    query.bindValue(":id", d->parent->id());
+    if (!query.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return;
+    }
+}

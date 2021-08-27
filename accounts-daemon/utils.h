@@ -30,6 +30,7 @@ namespace Utils {
         QueryError,
         IncorrectPassword,
         PasswordResetRequired,
+        PasswordResetRequestRequired,
         DisabledAccount,
         TwoFactorEnabled,
         TwoFactorDisabled,

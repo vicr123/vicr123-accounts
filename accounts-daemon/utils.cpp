@@ -74,7 +74,8 @@ void Utils::sendDbusError(DBusError error, const QDBusMessage& replyTo) {
         {TwoFactorDisabled, {"com.vicr123.accounts.Error.TwoFactorDisabled", "Two Factor Authentication is already disabled"}},
         {TwoFactorRequired, {"com.vicr123.accounts.Error.TwoFactorRequired", "Two Factor Authentication is required"}},
         {VerificationCodeIncorrect, {"com.vicr123.accounts.Error.VerificationCodeIncorrect", "The Verification code is incorrect"}},
-        {InvalidInput, {"com.vicr123.accounts.Error.InvalidInput", "The input is invalid"}}
+        {InvalidInput, {"com.vicr123.accounts.Error.InvalidInput", "The input is invalid"}},
+        {PasswordResetRequestRequired, {"com.vicr123.accounts.Error.PasswordResetRequestRequired", "A password reset must be requested"}}
     };
 
     QPair<QString, QString> errorStrings = errors.value(error);
