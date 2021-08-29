@@ -25,6 +25,7 @@
 #include "logger.h"
 #include "utils.h"
 #include "useraccount.h"
+#include "twofactor.h"
 
 struct AccountManagerPrivate {
 
@@ -217,6 +218,9 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
                             Utils::sendDbusError(Utils::QueryError, message);
                             return 0;
                         }
+
+                        UserAccount* account = UserAccount::accountForId(id);
+                        account->twoFactor()->reloadBackupKeys();
 
                         foundValidBackupKey = true;
                     }

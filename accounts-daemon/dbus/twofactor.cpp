@@ -65,6 +65,15 @@ TwoFactor::TwoFactor(UserAccount* parent) : QDBusAbstractAdaptor(parent) {
         d->enabled = query.value("enabled").toBool();
     }
 
+    reloadBackupKeys();
+}
+
+TwoFactor::~TwoFactor() {
+    delete d;
+}
+
+void TwoFactor::reloadBackupKeys() {
+    d->backups.clear();
     QSqlQuery backupsQuery;
     backupsQuery.prepare("SELECT * FROM otpbackup WHERE userid=:id");
     backupsQuery.bindValue(":id", d->parent->id());
@@ -76,10 +85,8 @@ TwoFactor::TwoFactor(UserAccount* parent) : QDBusAbstractAdaptor(parent) {
             backupsQuery.value("used").toBool()
         });
     }
-}
 
-TwoFactor::~TwoFactor() {
-    delete d;
+    emit BackupKeysChanged(d->backups);
 }
 
 bool TwoFactor::twoFactorEnabled() {

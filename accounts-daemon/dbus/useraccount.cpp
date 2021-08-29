@@ -29,6 +29,8 @@
 struct UserAccountPrivate {
     quint64 id;
 
+    TwoFactor* twoFactor;
+
     static QCache<quint64, UserAccount> cachedAccounts;
 };
 
@@ -39,7 +41,7 @@ UserAccount::UserAccount(quint64 id) : QObject(nullptr) {
     d->id = id;
 
     new User(this);
-    new TwoFactor(this);
+    d->twoFactor = new TwoFactor(this);
     new PasswordReset(this);
 
     Utils::accountsBus().registerObject(this->path().path(), this);
@@ -71,4 +73,8 @@ quint64 UserAccount::id() {
 
 QDBusObjectPath UserAccount::path() {
     return QDBusObjectPath(QStringLiteral("/com/vicr123/accounts/User%1").arg(d->id));
+}
+
+TwoFactor* UserAccount::twoFactor() {
+    return d->twoFactor;
 }

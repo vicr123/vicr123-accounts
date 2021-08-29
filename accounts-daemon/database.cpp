@@ -45,7 +45,7 @@ bool Database::init() {
 
     while (!db.open()) {
         Logger::error() << "Could not connect to the database\n";
-        Logger::error() << "Trying again after 5 seoconds.\n";
+        Logger::error() << "Trying again after 5 seconds.\n";
         QThread::sleep(5);
     }
 

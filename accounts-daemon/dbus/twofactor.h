@@ -42,6 +42,7 @@ class TwoFactor : public QDBusAbstractAdaptor {
         explicit TwoFactor(UserAccount* parent);
         ~TwoFactor();
 
+        void reloadBackupKeys();
 
         bool twoFactorEnabled();
         QString secretKey();

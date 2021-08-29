@@ -23,6 +23,7 @@
 #include <QObject>
 #include <QDBusObjectPath>
 
+class TwoFactor;
 struct UserAccountPrivate;
 class UserAccount : public QObject {
         Q_OBJECT
@@ -33,6 +34,8 @@ class UserAccount : public QObject {
 
         quint64 id();
         QDBusObjectPath path();
+
+        TwoFactor* twoFactor();
 
     signals:
 

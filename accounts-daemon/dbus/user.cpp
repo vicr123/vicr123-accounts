@@ -213,3 +213,14 @@ void User::ErasePassword(const QDBusMessage& message) {
         return;
     }
 }
+
+void User::SetEmailVerified(bool verified, const QDBusMessage& message) {
+    QSqlQuery updateUserQuery;
+    updateUserQuery.prepare("UPDATE users SET verified=:verified WHERE id=:id");
+    updateUserQuery.bindValue(":verified", verified);
+    updateUserQuery.bindValue(":id", d->parent->id());
+    if (!updateUserQuery.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return;
+    }
+}
