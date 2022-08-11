@@ -20,15 +20,15 @@
 #include <QCoreApplication>
 #include <QSettings>
 
-#include <QFile>
-#include <QProcess>
-#include <QDBusConnection>
-#include <QSqlDatabase>
-#include <logger.h>
+#include "database.h"
 #include "dbus/accountmanager.h"
 #include "dbusdaemon.h"
-#include "database.h"
 #include "utils.h"
+#include <QDBusConnection>
+#include <QFile>
+#include <QProcess>
+#include <QSqlDatabase>
+#include <logger.h>
 
 int main(int argc, char* argv[]) {
     QCoreApplication a(argc, argv);
@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    QSettings settings("/etc/vicr123-accounts.conf", QSettings::IniFormat);
+    QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);
     if (settings.value("dbus/bus").toString() == "dedicated") {
         new DBusDaemon(qEnvironmentVariable("DBUS_CONFIGURATION_FILE", settings.value("dbus/configuration").toString()));
         QDBusConnection::connectToBus("unix:path=/var/vicr123-accounts/vicr123-accounts-bus", "accounts");

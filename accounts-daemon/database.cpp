@@ -19,19 +19,19 @@
  * *************************************/
 #include "database.h"
 
+#include "logger.h"
+#include <QFile>
 #include <QSettings>
 #include <QSqlDatabase>
-#include <QFile>
 #include <QSqlQuery>
 #include <QThread>
-#include "logger.h"
 
-Database::Database(QObject* parent) : QObject(parent) {
-
+Database::Database(QObject* parent) :
+    QObject(parent) {
 }
 
 bool Database::init() {
-    QSettings settings("/etc/vicr123-accounts.conf", QSettings::IniFormat);
+    QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);
     if (!QSqlDatabase::isDriverAvailable(settings.value("database/driver").toString())) {
         Logger::error() << "The database driver is not available.";
         return false;
@@ -49,11 +49,11 @@ bool Database::init() {
         QThread::sleep(5);
     }
 
-    //Initialise the database
+    // Initialise the database
     if (!db.tables().contains("version")) {
         this->runSqlScript("init");
     } else {
-        //See if we need to migrate the database
+        // See if we need to migrate the database
     }
 
     return true;

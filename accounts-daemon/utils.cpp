@@ -31,7 +31,7 @@
 #include <src/SmtpMime>
 
 QDBusConnection Utils::accountsBus() {
-    QSettings settings("/etc/vicr123-accounts.conf", QSettings::IniFormat);
+    QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);
     if (settings.value("dbus/bus").toString() == "dedicated") {
         return QDBusConnection("accounts");
     } else {
