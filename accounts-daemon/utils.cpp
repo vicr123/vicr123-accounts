@@ -76,7 +76,7 @@ void Utils::sendDbusError(DBusError error, const QDBusMessage& replyTo) {
         {VerificationCodeIncorrect, {"com.vicr123.accounts.Error.VerificationCodeIncorrect", "The Verification code is incorrect"}},
         {InvalidInput, {"com.vicr123.accounts.Error.InvalidInput", "The input is invalid"}},
         {PasswordResetRequestRequired, {"com.vicr123.accounts.Error.PasswordResetRequestRequired", "A password reset must be requested"}},
-        {FidoSupportUnavailable, {"com.vicr123.accounts.Error.FidoSupportUnabailable", "FIDO U2F support is not available"}}
+        {FidoSupportUnavailable, {"com.vicr123.accounts.Error.FidoSupportUnavailable", "FIDO U2F support is not available"}}
     };
 
     QPair<QString, QString> errorStrings = errors.value(error);
