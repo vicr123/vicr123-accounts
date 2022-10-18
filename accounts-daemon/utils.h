@@ -36,10 +36,12 @@ namespace Utils {
         TwoFactorDisabled,
         TwoFactorRequired,
         VerificationCodeIncorrect,
-        InvalidInput
+        InvalidInput,
+        FidoSupportUnavailable
     };
 
     QDBusConnection accountsBus();
+    QString fidoHelperPath();
     QByteArray generateRandomBytes(int count);
     QByteArray generateSalt();
     QString generateHashedPassword(QString password, int iterations = 10000);
@@ -51,6 +53,6 @@ namespace Utils {
     bool isValidOtpKey(QString otpKey, QString sharedKey);
     bool sendVerificationEmail(quint64 user);
     bool isValidEmailAddress(QString email);
-}
+} // namespace Utils
 
 #endif // UTILS_H

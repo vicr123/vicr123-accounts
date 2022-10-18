@@ -20,10 +20,12 @@
 #ifndef USERACCOUNT_H
 #define USERACCOUNT_H
 
-#include <QObject>
 #include <QDBusObjectPath>
+#include <QObject>
 
 class TwoFactor;
+class Fido2;
+class User;
 struct UserAccountPrivate;
 class UserAccount : public QObject {
         Q_OBJECT
@@ -35,7 +37,9 @@ class UserAccount : public QObject {
         quint64 id();
         QDBusObjectPath path();
 
+        User* user();
         TwoFactor* twoFactor();
+        Fido2* fido2();
 
     signals:
 

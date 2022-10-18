@@ -32,6 +32,7 @@ struct DBusDaemonPrivate {
 DBusDaemon::DBusDaemon(QString configurationFile, QObject* parent) : QObject(parent) {
     d = new DBusDaemonPrivate();
     d->daemonProcess = new QProcess();
+    d->daemonProcess->setProcessChannelMode(QProcess::ForwardedChannels);
     d->daemonProcess->setChildProcessModifier([] {
         prctl(PR_SET_PDEATHSIG, SIGTERM);
     });

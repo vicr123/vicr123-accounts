@@ -54,6 +54,15 @@ bool Database::init() {
         this->runSqlScript("init");
     } else {
         // See if we need to migrate the database
+        auto versionQuery = db.exec("SELECT number FROM version");
+        versionQuery.next();
+        auto number = versionQuery.value("number").toInt();
+        if (number == 1) {
+            // Update to V2 required
+            this->runSqlScript("v2");
+        } else {
+            //We are up to date!
+        }
     }
 
     return true;

@@ -21,13 +21,14 @@
 #define ACCOUNTMANAGER_H
 
 #include <QDBusAbstractAdaptor>
-#include <QDBusObjectPath>
 #include <QDBusMessage>
+#include <QDBusObjectPath>
 
 struct AccountManagerPrivate;
 class AccountManager : public QObject {
         Q_OBJECT
         Q_CLASSINFO("D-Bus Interface", "com.vicr123.accounts.Manager");
+
     public:
         explicit AccountManager();
         ~AccountManager();
@@ -39,6 +40,9 @@ class AccountManager : public QObject {
         Q_SCRIPTABLE QDBusObjectPath UserById(quint64 id, const QDBusMessage& message);
         Q_SCRIPTABLE quint64 UserIdByUsername(QString username, const QDBusMessage& message);
         Q_SCRIPTABLE QString ProvisionToken(QString username, QString password, QString application, QVariantMap extraOptions, const QDBusMessage& message);
+        Q_SCRIPTABLE QString ForceProvisionToken(quint64 userId, QString application, const QDBusMessage& message);
+        Q_SCRIPTABLE QStringList TokenProvisioningMethods(QString username, QString application, const QDBusMessage& message);
+        Q_SCRIPTABLE QVariantMap ProvisionTokenByMethod(QString method, QString username, QString application, QVariantMap extraOptions, const QDBusMessage& message);
         Q_SCRIPTABLE QDBusObjectPath UserForToken(QString token, const QDBusMessage& message);
         Q_SCRIPTABLE QList<quint64> AllUsers(const QDBusMessage& message);
 
@@ -46,7 +50,6 @@ class AccountManager : public QObject {
 
     private:
         AccountManagerPrivate* d;
-
 };
 
 #endif // ACCOUNTMANAGER_H

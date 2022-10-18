@@ -19,26 +19,27 @@
  * *************************************/
 #include "mailtemplate.h"
 
-#include <QSettings>
 #include <QDir>
-#include <QMap>
-#include <QJsonObject>
 #include <QJsonDocument>
+#include <QJsonObject>
+#include <QMap>
+#include <QSettings>
 
 #include <src/SmtpMime>
 
 struct MailTemplatePrivate {
-    QJsonObject metadata;
-    QString textContent;
-    QString htmlContent;
-    QMap<QString, QString> replacements;
+        QJsonObject metadata;
+        QString textContent;
+        QString htmlContent;
+        QMap<QString, QString> replacements;
 };
 
-MailTemplate::MailTemplate(QString templateName, QString locale, QMap<QString, QString> replacements, QObject* parent) : QObject(parent) {
+MailTemplate::MailTemplate(QString templateName, QString locale, QMap<QString, QString> replacements, QObject* parent) :
+    QObject(parent) {
     d = new MailTemplatePrivate();
     d->replacements = replacements;
 
-    QSettings settings("/etc/vicr123-accounts.conf", QSettings::IniFormat);
+    QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);
     QDir maildir(qEnvironmentVariable("MAIL_MAILDIR", settings.value("mail/maildir").toString()));
 
     QFile mailfile = maildir.absoluteFilePath(QStringLiteral("%1/%2").arg(locale, templateName));

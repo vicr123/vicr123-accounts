@@ -19,29 +19,34 @@
  * *************************************/
 #include "useraccount.h"
 
+#include "fido2.h"
+#include "passwordreset.h"
+#include "twofactor.h"
+#include "user.h"
+#include "utils.h"
 #include <QCache>
 #include <QSqlQuery>
-#include "user.h"
-#include "twofactor.h"
-#include "passwordreset.h"
-#include "utils.h"
 
 struct UserAccountPrivate {
-    quint64 id;
+        quint64 id;
 
-    TwoFactor* twoFactor;
+        User* user;
+        TwoFactor* twoFactor;
+        Fido2* fido2;
 
-    static QCache<quint64, UserAccount> cachedAccounts;
+        static QCache<quint64, UserAccount> cachedAccounts;
 };
 
 QCache<quint64, UserAccount> UserAccountPrivate::cachedAccounts = QCache<quint64, UserAccount>(100);
 
-UserAccount::UserAccount(quint64 id) : QObject(nullptr) {
+UserAccount::UserAccount(quint64 id) :
+    QObject(nullptr) {
     d = new UserAccountPrivate();
     d->id = id;
 
-    new User(this);
+    d->user = new User(this);
     d->twoFactor = new TwoFactor(this);
+    d->fido2 = new Fido2(this);
     new PasswordReset(this);
 
     Utils::accountsBus().registerObject(this->path().path(), this);
@@ -54,7 +59,7 @@ UserAccount::~UserAccount() {
 UserAccount* UserAccount::accountForId(quint64 id) {
     if (UserAccountPrivate::cachedAccounts.contains(id)) return UserAccountPrivate::cachedAccounts.object(id);
 
-    //Ensure the account exists
+    // Ensure the account exists
     QSqlQuery query;
     query.prepare("SELECT COUNT(*) FROM users WHERE id=:id");
     query.bindValue(":id", id);
@@ -62,7 +67,7 @@ UserAccount* UserAccount::accountForId(quint64 id) {
     query.next();
     if (query.value(0) == 0) return nullptr;
 
-    UserAccount* account = new UserAccount(id);
+    auto* account = new UserAccount(id);
     UserAccountPrivate::cachedAccounts.insert(id, account);
     return account;
 }
@@ -77,4 +82,11 @@ QDBusObjectPath UserAccount::path() {
 
 TwoFactor* UserAccount::twoFactor() {
     return d->twoFactor;
+}
+
+Fido2* UserAccount::fido2() {
+    return d->fido2;
+}
+User* UserAccount::user() {
+    return d->user;
 }

@@ -10,6 +10,7 @@ set(SOURCES
     dbus/twofactor.cpp
     dbus/user.cpp
     dbus/useraccount.cpp
+    dbus/fido2.cpp
     dbusdaemon.cpp
     logger.cpp
     mailtemplate.cpp
@@ -17,7 +18,7 @@ set(SOURCES
     utils.cpp
     
     resources.qrc
-)
+        fidoutils.cpp)
 
 set(HEADERS
     database.h
@@ -26,11 +27,12 @@ set(HEADERS
     dbus/twofactor.h
     dbus/user.h
     dbus/useraccount.h
+    dbus/fido2.h
     dbusdaemon.h
     logger.h
     mailtemplate.h
     utils.h
-)
+        fidoutils.h)
 
 add_executable(vicr123accounts ${SOURCES} ${HEADERS})
 

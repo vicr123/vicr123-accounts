@@ -19,19 +19,24 @@
  * *************************************/
 #include "accountmanager.h"
 
-#include <QSqlQuery>
-#include <QSqlDatabase>
-#include <QDateTime>
+#include "fidoutils.h"
 #include "logger.h"
-#include "utils.h"
-#include "useraccount.h"
 #include "twofactor.h"
+#include "useraccount.h"
+#include "utils.h"
+#include <QDateTime>
+#include <QJsonObject>
+#include <QProcess>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QJsonDocument>
+#include <QJsonArray>
 
 struct AccountManagerPrivate {
-
 };
 
-AccountManager::AccountManager() : QObject(nullptr) {
+AccountManager::AccountManager() :
+    QObject(nullptr) {
     d = new AccountManagerPrivate();
 
     if (!Utils::accountsBus().registerObject("/com/vicr123/accounts", this, QDBusConnection::ExportScriptableContents)) {
@@ -74,7 +79,7 @@ QDBusObjectPath AccountManager::CreateUser(QString username, QString password, Q
     query.next();
     quint64 id = query.value(0).toULongLong();
 
-    //Ignore the return value here: if the email doesn't get through they can request a new one later
+    // Ignore the return value here: if the email doesn't get through they can request a new one later
     Utils::sendVerificationEmail(id);
 
     UserAccount* account = UserAccount::accountForId(id);
@@ -124,14 +129,14 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
     userQuery.exec();
     userQuery.next();
 
-    //Ensure the password is correct
+    // Ensure the password is correct
     QString passwordHash = userQuery.value("password").toString();
     if (passwordHash.startsWith("!")) {
         Utils::sendDbusError(Utils::DisabledAccount, message);
         return 0;
     }
 
-    //Now check for password resets
+    // Now check for password resets
     {
         QSqlQuery resetQuery;
         resetQuery.prepare("SELECT * FROM passwordresets WHERE userid=:id");
@@ -148,8 +153,8 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
 
                     QString newPassword = extraOptions.value("newPassword").toString();
 
-                    //Set the new password on this user account
-                    //TODO: use existing code in User class
+                    // Set the new password on this user account
+                    // TODO: use existing code in User class
                     passwordHash = Utils::generateHashedPassword(newPassword);
                     QSqlQuery updateQuery;
                     updateQuery.prepare("UPDATE users SET password=:password WHERE id=:id");
@@ -180,7 +185,7 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
         return 0;
     }
 
-    //Check TOTP
+    // Check TOTP
     QSqlQuery otpQuery;
     otpQuery.prepare("SELECT * FROM otp WHERE userid=:id");
     otpQuery.bindValue(":id", id);
@@ -199,7 +204,7 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
             QString otpSecret = otpQuery.value("otpkey").toString();
             QString otpKey = extraOptions.value("otpToken").toString();
             if (!Utils::isValidOtpKey(otpKey, otpSecret)) {
-                //Check the backup keys
+                // Check the backup keys
                 QSqlQuery backupsQuery;
                 backupsQuery.prepare("SELECT * FROM otpbackup WHERE userid=:id");
                 backupsQuery.bindValue(":id", id);
@@ -249,6 +254,33 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
     return newToken;
 }
 
+QString AccountManager::ForceProvisionToken(quint64 userId, QString application, const QDBusMessage& message) {
+    if (application.isEmpty()) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return 0;
+    }
+
+    UserAccount* account = UserAccount::accountForId(userId);
+    if (!account) {
+        Utils::sendDbusError(Utils::NoAccount, message);
+        return 0;
+    }
+
+    QString newToken = Utils::generateSalt().toBase64();
+
+    QSqlQuery tokenInsertQuery;
+    tokenInsertQuery.prepare("INSERT INTO tokens(userid, token, application) VALUES(:id, :token, :application)");
+    tokenInsertQuery.bindValue(":id", userId);
+    tokenInsertQuery.bindValue(":token", newToken);
+    tokenInsertQuery.bindValue(":application", application);
+    if (!tokenInsertQuery.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return 0;
+    }
+
+    return newToken;
+}
+
 QDBusObjectPath AccountManager::UserForToken(QString token, const QDBusMessage& message) {
     QSqlQuery query;
     query.prepare("SELECT * FROM tokens WHERE token=:token");
@@ -278,4 +310,166 @@ QList<quint64> AccountManager::AllUsers(const QDBusMessage& message) {
         users.append(query.value("id").toULongLong());
     }
     return users;
+}
+
+QStringList AccountManager::TokenProvisioningMethods(QString username, QString application, const QDBusMessage& message) {
+    quint64 id = userIdByUsername(username);
+    if (id == 0) {
+        Utils::sendDbusError(Utils::NoAccount, message);
+        return {};
+    }
+
+    QSqlQuery userQuery;
+    userQuery.prepare("SELECT * FROM users WHERE id=:id");
+    userQuery.bindValue(":id", id);
+    userQuery.exec();
+    userQuery.next();
+
+    // Ensure the account is not disabled
+    QString passwordHash = userQuery.value("password").toString();
+    if (passwordHash.startsWith("!")) {
+        Utils::sendDbusError(Utils::DisabledAccount, message);
+        return {};
+    }
+
+    QStringList methods;
+    methods.append("password");
+
+    //Check if FIDO is set up
+    QSqlQuery fidoQuery;
+    fidoQuery.prepare("SELECT COUNT(*) FROM fido WHERE application=:application AND userid=:userid");
+    fidoQuery.bindValue(":application", application);
+    fidoQuery.bindValue(":userid", id);
+    if (!fidoQuery.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        return {};
+    }
+
+    fidoQuery.next();
+    auto count = fidoQuery.value(0).toInt();
+    if (count > 0) {
+        methods.append("fido");
+    }
+
+    return methods;
+}
+QVariantMap AccountManager::ProvisionTokenByMethod(QString method, QString username, QString application, QVariantMap extraOptions, const QDBusMessage& message) {
+    quint64 id = userIdByUsername(username);
+    if (id == 0) {
+        Utils::sendDbusError(Utils::NoAccount, message);
+        return {};
+    }
+
+    auto availableMethods = TokenProvisioningMethods(username, application, message);
+    if (!availableMethods.contains(method)) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return {};
+    }
+
+    if (method == "password") {
+        if (!extraOptions.contains("password") ) {
+            Utils::sendDbusError(Utils::InvalidInput, message);
+            return {};
+        }
+
+        auto token = ProvisionToken(username, extraOptions.value("password").toString(), application, extraOptions, message);
+        return QVariantMap({
+            {"token", token}
+        });
+    } else if (method == "fido") {
+        if (extraOptions.contains("response")) {
+            if (!extraOptions.contains("response") && !extraOptions.contains("pregetOptions") && !extraOptions.contains("expectOrigins")) {
+                Utils::sendDbusError(Utils::InvalidInput, message);
+                return {};
+            }
+
+            QStringList args = {
+                "preget",
+                "--rpname", extraOptions.value("rpname").toString(),
+                "--rpid", extraOptions.value("rpid").toString()
+            };
+
+            QJsonObject payload;
+            payload.insert("existingCreds", QJsonArray::fromStringList(FidoUtils::FidoCredsForUser(id, application)));
+            payload.insert("extraOrigins", QJsonArray::fromStringList(extraOptions.value("expectOrigins").toStringList()));
+            payload.insert("response", extraOptions.value("response").toString());
+            payload.insert("pregetOptions", extraOptions.value("pregetOptions").toString());
+
+            QProcess fidoHelper;
+            fidoHelper.start(Utils::fidoHelperPath(), args);
+            fidoHelper.write(QJsonDocument(payload).toJson());
+            fidoHelper.closeWriteChannel();
+            fidoHelper.waitForFinished(-1);
+
+            if (fidoHelper.error() != QProcess::UnknownError) {
+                Utils::sendDbusError(Utils::FidoSupportUnavailable, message);
+                return {};
+            }
+
+            if (fidoHelper.exitCode() != 0) {
+                Utils::sendDbusError(Utils::InternalError, message);
+                return {};
+            }
+
+            auto outputStr = fidoHelper.readAllStandardOutput();
+            auto output = QJsonDocument::fromJson(outputStr).object();
+
+            auto usedCred = output.value("usedCred").toString().toUtf8();
+            auto newCred = output.value("newCred").toString().toUtf8();
+
+            QSqlQuery fidoQuery;
+            fidoQuery.prepare("UPDATE fido SET data=:newCred WHERE data=:oldCred AND userid=:id");
+            fidoQuery.bindValue(":newCred", newCred);
+            fidoQuery.bindValue(":oldCred", usedCred);
+            fidoQuery.bindValue(":id", id);
+            if (!fidoQuery.exec()) {
+                Utils::sendDbusError(Utils::QueryError, message);
+                return {};
+            }
+
+            //Provision a token
+            auto token = ForceProvisionToken(id, application, message);
+            return QVariantMap({
+                {"token", token}
+            });
+        } else {
+            if (!extraOptions.contains("rpname") && !extraOptions.contains("rpid")) {
+                Utils::sendDbusError(Utils::InvalidInput, message);
+                return {};
+            }
+
+            QStringList args = {
+                "preget",
+                "--rpname", extraOptions.value("rpname").toString(),
+                "--rpid", extraOptions.value("rpid").toString()
+            };
+
+            QJsonObject payload;
+            payload.insert("existingCreds", QJsonArray::fromStringList(FidoUtils::FidoCredsForUser(id, application)));
+
+            QProcess fidoHelper;
+            fidoHelper.start(Utils::fidoHelperPath(), args);
+            fidoHelper.write(QJsonDocument(payload).toJson());
+            fidoHelper.closeWriteChannel();
+            fidoHelper.waitForFinished(-1);
+
+            if (fidoHelper.error() != QProcess::UnknownError) {
+                Utils::sendDbusError(Utils::FidoSupportUnavailable, message);
+                return {};
+            }
+
+            if (fidoHelper.exitCode() != 0) {
+                Utils::sendDbusError(Utils::InternalError, message);
+                return {};
+            }
+
+            auto output = fidoHelper.readAllStandardOutput();
+            return QVariantMap({
+                {"options", output}
+            });
+        }
+    }
+
+    Utils::sendDbusError(Utils::InvalidInput, message);
+    return {};
 }
