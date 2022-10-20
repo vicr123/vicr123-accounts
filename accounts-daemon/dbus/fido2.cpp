@@ -21,6 +21,7 @@
 #include "useraccount.h"
 #include "user.h"
 
+#include "fidoutils.h"
 #include "utils.h"
 #include <QDBusMetaType>
 #include <QJsonArray>
@@ -82,8 +83,13 @@ QString Fido2::PrepareRegister(QString application, QString rp, int authenticato
     d->lastRpName = application;
     d->lastRpId = rp;
 
+    QJsonObject payload;
+    payload.insert("existingCreds", QJsonArray::fromStringList(FidoUtils::FidoCredsForUser(d->parent->id(), application)));
+
     QProcess fidoHelper;
     fidoHelper.start(Utils::fidoHelperPath(), args);
+    fidoHelper.write(QJsonDocument(payload).toJson());
+    fidoHelper.closeWriteChannel();
     fidoHelper.waitForFinished(-1);
 
     if (fidoHelper.error() != QProcess::UnknownError) {
