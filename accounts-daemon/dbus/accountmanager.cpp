@@ -153,13 +153,15 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
     }
 
     // Now check for password resets
+    bool havePasswordReset = false;
     {
         QSqlQuery resetQuery;
         resetQuery.prepare("SELECT * FROM passwordresets WHERE userid=:id");
         resetQuery.bindValue(":id", id);
         resetQuery.exec();
-        if (resetQuery.next()) {
+        while (resetQuery.next()) {
             if (resetQuery.value("expiry").toLongLong() > QDateTime::currentMSecsSinceEpoch()) {
+                havePasswordReset = true;
                 QString temporaryPassword = resetQuery.value("temporarypassword").toString();
                 if (Utils::verifyHashedPassword(password, temporaryPassword)) {
                     if (!extraOptions.contains("newPassword")) {
@@ -198,9 +200,16 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
     }
 
     if (passwordHash == "x") {
-        Utils::sendDbusError(Utils::PasswordResetRequestRequired, message);
+        // Check if there is already a pending password reset.
+        // If there is already a pending password reset, tell the user that their password is incorrect instead.
+        if (havePasswordReset) {
+            Utils::sendDbusError(Utils::IncorrectPassword, message);
+        } else {
+            Utils::sendDbusError(Utils::PasswordResetRequestRequired, message);
+        }
         return 0;
     }
+
     if (!Utils::verifyHashedPassword(password, passwordHash)) {
         Utils::sendDbusError(Utils::IncorrectPassword, message);
         return 0;
