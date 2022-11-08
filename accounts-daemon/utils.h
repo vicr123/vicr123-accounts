@@ -52,7 +52,6 @@ namespace Utils {
     QString generateSharedOtpKey();
     bool isValidOtpKey(QString otpKey, QString sharedKey);
     bool sendVerificationEmail(quint64 user);
-    bool isValidEmailAddress(QString email);
 } // namespace Utils
 
 #endif // UTILS_H

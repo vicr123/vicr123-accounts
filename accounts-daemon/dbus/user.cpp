@@ -19,11 +19,12 @@
  * *************************************/
 #include "user.h"
 
-#include <QSqlQuery>
-#include <QSqlError>
-#include <QDateTime>
 #include "useraccount.h"
 #include "utils.h"
+#include "validation.h"
+#include <QDateTime>
+#include <QSqlError>
+#include <QSqlQuery>
 
 struct UserPrivate {
     UserAccount* parent;
@@ -73,6 +74,11 @@ void User::SetUsername(QString username, const QDBusMessage& message) {
         return;
     }
 
+    if (!Validation::validateUsername(username)) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return;
+    }
+
     QString oldUsername = d->username;
 
     QSqlQuery query;
@@ -94,6 +100,11 @@ void User::SetPassword(QString password, const QDBusMessage& message) {
         return;
     }
 
+    if (!Validation::validatePassword(password)) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return;
+    }
+
     QString hashedPassword = Utils::generateHashedPassword(password);
 
     QSqlQuery query;
@@ -107,7 +118,7 @@ void User::SetPassword(QString password, const QDBusMessage& message) {
 }
 
 void User::SetEmail(QString email, const QDBusMessage& message) {
-    if (!Utils::isValidEmailAddress(email)) {
+    if (!Validation::validateEmailAddress(email)) {
         Utils::sendDbusError(Utils::InvalidInput, message);
         return;
     }

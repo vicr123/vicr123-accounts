@@ -16,9 +16,11 @@ set(SOURCES
     mailtemplate.cpp
     main.cpp
     utils.cpp
+    validation.cpp
     
     resources.qrc
-        fidoutils.cpp)
+    fidoutils.cpp
+)
 
 set(HEADERS
     database.h
@@ -32,7 +34,9 @@ set(HEADERS
     logger.h
     mailtemplate.h
     utils.h
-        fidoutils.h)
+    validation.h
+    fidoutils.h
+)
 
 add_executable(vicr123accounts ${SOURCES} ${HEADERS})
 

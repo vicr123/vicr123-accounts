@@ -235,11 +235,6 @@ bool Utils::sendVerificationEmail(quint64 user) {
     return true;
 }
 
-bool Utils::isValidEmailAddress(QString email) {
-    if (email.isEmpty()) return false;
-    return true;
-}
-
 QString Utils::fidoHelperPath()
 {
     QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);

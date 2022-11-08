@@ -24,6 +24,7 @@
 #include "twofactor.h"
 #include "useraccount.h"
 #include "utils.h"
+#include "validation.h"
 #include <QDateTime>
 #include <QJsonObject>
 #include <QProcess>
@@ -61,7 +62,22 @@ quint64 AccountManager::userIdByUsername(QString username) {
 }
 
 QDBusObjectPath AccountManager::CreateUser(QString username, QString password, QString email, const QDBusMessage& message) {
-    if (username.isEmpty() || password.isEmpty() || email.isEmpty() || !Utils::isValidEmailAddress(email)) {
+    if (username.isEmpty() || password.isEmpty() || email.isEmpty()) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return QDBusObjectPath("/");
+    }
+
+    if (!Validation::validateUsername(username)) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return QDBusObjectPath("/");
+    }
+
+    if (!Validation::validatePassword(password)) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        return QDBusObjectPath("/");
+    }
+
+    if (!Validation::validateEmailAddress(email)) {
         Utils::sendDbusError(Utils::InvalidInput, message);
         return QDBusObjectPath("/");
     }
@@ -152,6 +168,11 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
                     }
 
                     QString newPassword = extraOptions.value("newPassword").toString();
+
+                    if (!Validation::validatePassword(newPassword)) {
+                        Utils::sendDbusError(Utils::InvalidInput, message);
+                        return 0;
+                    }
 
                     // Set the new password on this user account
                     // TODO: use existing code in User class
