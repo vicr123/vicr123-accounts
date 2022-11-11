@@ -20,8 +20,9 @@
 #ifndef USER_H
 #define USER_H
 
-#include <QDBusMessage>
 #include <QDBusAbstractAdaptor>
+#include <QDBusMessage>
+#include <QDBusObjectPath>
 
 class UserAccount;
 struct UserPrivate;
@@ -52,6 +53,7 @@ class User : public QDBusAbstractAdaptor {
         Q_SCRIPTABLE bool VerifyPassword(QString password, const QDBusMessage& message);
         Q_SCRIPTABLE void ErasePassword(const QDBusMessage& message);
         Q_SCRIPTABLE void SetEmailVerified(bool verified, const QDBusMessage& message);
+        Q_SCRIPTABLE QDBusObjectPath CreateMailMessage(const QDBusMessage& message);
 
     signals:
         Q_SCRIPTABLE void UsernameChanged(QString oldUsername, QString newUsername);

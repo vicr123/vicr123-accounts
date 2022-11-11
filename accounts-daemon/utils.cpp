@@ -76,7 +76,9 @@ void Utils::sendDbusError(DBusError error, const QDBusMessage& replyTo) {
         {VerificationCodeIncorrect, {"com.vicr123.accounts.Error.VerificationCodeIncorrect", "The Verification code is incorrect"}},
         {InvalidInput, {"com.vicr123.accounts.Error.InvalidInput", "The input is invalid"}},
         {PasswordResetRequestRequired, {"com.vicr123.accounts.Error.PasswordResetRequestRequired", "A password reset must be requested"}},
-        {FidoSupportUnavailable, {"com.vicr123.accounts.Error.FidoSupportUnavailable", "FIDO U2F support is not available"}}
+        {FidoSupportUnavailable, {"com.vicr123.accounts.Error.FidoSupportUnavailable", "FIDO U2F support is not available"}},
+        {AccountEmailNotVerified, {"com.vicr123.accounts.Error.AccountEmailNotVerified", "Account Email is not verified"}},
+        {EmailError, {"com.vicr123.accounts.Error.EmailError", "Unable to send the email"}}
     };
 
     QPair<QString, QString> errorStrings = errors.value(error);
@@ -96,58 +98,21 @@ QByteArray Utils::generateSalt() {
 }
 
 void Utils::sendTemplateEmail(QString templateName, QList<QString> recipients, QString locale, QMap<QString, QString> replacements) {
-    QFuture<void> future = QtConcurrent::run([ = ](QPromise<void>& promise) {
-        QString securityTypeString = qEnvironmentVariable("SMTP_SECURITY");
-        SmtpClient::ConnectionType securityType;
-        if (securityTypeString == "STARTTLS") {
-            securityType = SmtpClient::TlsConnection;
-        } else if (securityTypeString == "true") {
-            securityType = SmtpClient::SslConnection;
-        } else {
-            securityType = SmtpClient::TcpConnection;
-        }
-        SmtpClient client(qEnvironmentVariable("SMTP_HOST"), qEnvironmentVariableIntValue("SMTP_PORT"), securityType);
+    auto message = QSharedPointer<MimeMessage>(new MimeMessage());
+    message->setSender(new EmailAddress(qEnvironmentVariable("SMTP_SENDER_EMAIL"), qEnvironmentVariable("SMTP_SENDER_NAME")));
+    for (QString recipient : recipients) {
+        message->addRecipient(new EmailAddress(recipient));
+    }
 
-        client.setUser(qEnvironmentVariable("SMTP_USERNAME"));
-        client.setPassword(qEnvironmentVariable("SMTP_PASSWORD"));
-        client.setAuthMethod(SmtpClient::AuthLogin);
+    MailTemplate mailTemplate(templateName, locale, replacements);
+    QSharedPointer<MimePart> htmlPart = mailTemplate.htmlPart();
+    QSharedPointer<MimePart> textPart = mailTemplate.textPart();
 
-        MimeMessage message;
-        message.setSender(new EmailAddress(qEnvironmentVariable("SMTP_SENDER_EMAIL"), qEnvironmentVariable("SMTP_SENDER_NAME")));
-        for (QString recipient : recipients) {
-            message.addRecipient(new EmailAddress(recipient));
-        }
+    message->setSubject(mailTemplate.subject());
+    message->addPart(htmlPart.data());
+    message->addPart(textPart.data());
 
-        MailTemplate mailTemplate(templateName, locale, replacements);
-        QSharedPointer<MimePart> htmlPart = mailTemplate.htmlPart();
-        QSharedPointer<MimePart> textPart = mailTemplate.textPart();
-
-        message.setSubject(mailTemplate.subject());
-        message.addPart(htmlPart.data());
-        message.addPart(textPart.data());
-
-        if (!client.connectToHost()) {
-            Logger::error() << "Could not connect to SMTP server";
-            promise.finish();
-            return;
-        }
-
-        if (!client.login()) {
-            Logger::error() << "Could not log in to SMTP server";
-            promise.finish();
-            return;
-        }
-
-        if (!client.sendMail(message)) {
-            Logger::error() << "Could not send email";
-            promise.finish();
-            return;
-        }
-
-        client.quit();
-
-        promise.finish();
-    });
+    sendMailMessage(message);
 }
 
 QString Utils::otpKey(QString sharedKey, int offset) {
@@ -239,4 +204,47 @@ QString Utils::fidoHelperPath()
 {
     QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);
     return settings.value("fido/executable").toString();
+}
+
+QFuture<void> Utils::sendMailMessage(const QSharedPointer<MimeMessage>& message) {
+    return QtConcurrent::run([ message ](QPromise<void>& promise) {
+        auto innerMessage = message;
+
+        QString securityTypeString = qEnvironmentVariable("SMTP_SECURITY");
+        SmtpClient::ConnectionType securityType;
+        if (securityTypeString == "STARTTLS") {
+            securityType = SmtpClient::TlsConnection;
+        } else if (securityTypeString == "true") {
+            securityType = SmtpClient::SslConnection;
+        } else {
+            securityType = SmtpClient::TcpConnection;
+        }
+        SmtpClient client(qEnvironmentVariable("SMTP_HOST"), qEnvironmentVariableIntValue("SMTP_PORT"), securityType);
+
+        client.setUser(qEnvironmentVariable("SMTP_USERNAME"));
+        client.setPassword(qEnvironmentVariable("SMTP_PASSWORD"));
+        client.setAuthMethod(SmtpClient::AuthLogin);
+
+        if (!client.connectToHost()) {
+            Logger::error() << "Could not connect to SMTP server";
+            promise.setException(QException());
+            return;
+        }
+
+        if (!client.login()) {
+            Logger::error() << "Could not log in to SMTP server";
+            promise.setException(QException());
+            return;
+        }
+
+        if (!client.sendMail(*innerMessage)) {
+            Logger::error() << "Could not send email";
+            promise.setException(QException());
+            return;
+        }
+
+        client.quit();
+
+        promise.finish();
+    });
 }

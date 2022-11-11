@@ -19,6 +19,7 @@
  * *************************************/
 #include "user.h"
 
+#include "mailmessage.h"
 #include "useraccount.h"
 #include "utils.h"
 #include "validation.h"
@@ -234,4 +235,16 @@ void User::SetEmailVerified(bool verified, const QDBusMessage& message) {
         Utils::sendDbusError(Utils::QueryError, message);
         return;
     }
+
+    d->verified = true;
+    emit VerifiedChanged(true);
+}
+QDBusObjectPath User::CreateMailMessage(const QDBusMessage& message) {
+    if (!verified()) {
+        Utils::sendDbusError(Utils::AccountEmailNotVerified, message);
+        return {};
+    }
+
+    auto* mailMessage = new MailMessage(this->email());
+    return mailMessage->path();
 }

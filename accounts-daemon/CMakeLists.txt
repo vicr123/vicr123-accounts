@@ -11,6 +11,7 @@ set(SOURCES
     dbus/user.cpp
     dbus/useraccount.cpp
     dbus/fido2.cpp
+    dbus/mailmessage.cpp
     dbusdaemon.cpp
     logger.cpp
     mailtemplate.cpp
@@ -30,6 +31,7 @@ set(HEADERS
     dbus/user.h
     dbus/useraccount.h
     dbus/fido2.h
+    dbus/mailmessage.h
     dbusdaemon.h
     logger.h
     mailtemplate.h
