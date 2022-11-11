@@ -52,7 +52,7 @@ namespace Utils {
     bool verifyHashedPassword(QString password, QString hash);
     void sendDbusError(DBusError error, const QDBusMessage& replyTo);
     void sendTemplateEmail(QString templateName, QList<QString> recipients, QString locale, QMap<QString, QString> replacements);
-    QFuture<void> sendMailMessage(const QSharedPointer<MimeMessage>& message);
+    QFuture<void> sendMailMessage(MimeMessage* message);
     QString otpKey(QString sharedKey, int offset = 0);
     QString generateSharedOtpKey();
     bool isValidOtpKey(QString otpKey, QString sharedKey);

@@ -98,19 +98,19 @@ QByteArray Utils::generateSalt() {
 }
 
 void Utils::sendTemplateEmail(QString templateName, QList<QString> recipients, QString locale, QMap<QString, QString> replacements) {
-    auto message = QSharedPointer<MimeMessage>(new MimeMessage());
-    message->setSender(new EmailAddress(qEnvironmentVariable("SMTP_SENDER_EMAIL"), qEnvironmentVariable("SMTP_SENDER_NAME")));
+    auto message = new MimeMessage();
+    message->setSender(EmailAddress(qEnvironmentVariable("SMTP_SENDER_EMAIL"), qEnvironmentVariable("SMTP_SENDER_NAME")));
     for (QString recipient : recipients) {
-        message->addRecipient(new EmailAddress(recipient));
+        message->addRecipient(EmailAddress(recipient));
     }
 
     MailTemplate mailTemplate(templateName, locale, replacements);
-    QSharedPointer<MimePart> htmlPart = mailTemplate.htmlPart();
-    QSharedPointer<MimePart> textPart = mailTemplate.textPart();
+    auto htmlPart = mailTemplate.htmlPart();
+    auto textPart = mailTemplate.textPart();
 
     message->setSubject(mailTemplate.subject());
-    message->addPart(htmlPart.data());
-    message->addPart(textPart.data());
+    message->addPart(htmlPart);
+    message->addPart(textPart);
 
     sendMailMessage(message);
 }
@@ -156,7 +156,7 @@ QString Utils::generateSharedOtpKey() {
     QString validLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     QString key;
     for (int i = 0; i < 32; i++) {
-        key.append(validLetters.at(QRandomGenerator::securelySeeded().bounded(validLetters.count())));
+        key.append(validLetters.at(QRandomGenerator::securelySeeded().bounded(validLetters.length())));
     }
     return key;
 }
@@ -206,10 +206,8 @@ QString Utils::fidoHelperPath()
     return settings.value("fido/executable").toString();
 }
 
-QFuture<void> Utils::sendMailMessage(const QSharedPointer<MimeMessage>& message) {
+QFuture<void> Utils::sendMailMessage(MimeMessage* message) {
     return QtConcurrent::run([ message ](QPromise<void>& promise) {
-        auto innerMessage = message;
-
         QString securityTypeString = qEnvironmentVariable("SMTP_SECURITY");
         SmtpClient::ConnectionType securityType;
         if (securityTypeString == "STARTTLS") {
@@ -219,32 +217,34 @@ QFuture<void> Utils::sendMailMessage(const QSharedPointer<MimeMessage>& message)
         } else {
             securityType = SmtpClient::TcpConnection;
         }
+
         SmtpClient client(qEnvironmentVariable("SMTP_HOST"), qEnvironmentVariableIntValue("SMTP_PORT"), securityType);
+        client.connectToHost();
 
-        client.setUser(qEnvironmentVariable("SMTP_USERNAME"));
-        client.setPassword(qEnvironmentVariable("SMTP_PASSWORD"));
-        client.setAuthMethod(SmtpClient::AuthLogin);
-
-        if (!client.connectToHost()) {
+        if (!client.waitForReadyConnected()) {
             Logger::error() << "Could not connect to SMTP server";
             promise.setException(QException());
             return;
         }
 
-        if (!client.login()) {
+        client.login(qEnvironmentVariable("SMTP_USERNAME"), qEnvironmentVariable("SMTP_PASSWORD"), SmtpClient::AuthLogin);
+        if (!client.waitForAuthenticated()) {
             Logger::error() << "Could not log in to SMTP server";
             promise.setException(QException());
             return;
         }
 
-        if (!client.sendMail(*innerMessage)) {
+        client.sendMail(*message);
+
+        if (!client.waitForMailSent()) {
+            message->deleteLater();
             Logger::error() << "Could not send email";
             promise.setException(QException());
             return;
         }
 
+        message->deleteLater();
         client.quit();
-
         promise.finish();
     });
 }

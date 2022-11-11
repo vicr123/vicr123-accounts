@@ -31,8 +31,8 @@ class MailTemplate : public QObject {
         ~MailTemplate();
 
         QString subject();
-        QSharedPointer<MimePart> textPart();
-        QSharedPointer<MimePart> htmlPart();
+        MimePart* textPart();
+        MimePart* htmlPart();
 
     signals:
 

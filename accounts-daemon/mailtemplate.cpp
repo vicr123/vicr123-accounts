@@ -60,16 +60,16 @@ QString MailTemplate::subject() {
     return d->metadata.value("subject").toString();
 }
 
-QSharedPointer<MimePart> MailTemplate::textPart() {
+MimePart* MailTemplate::textPart() {
     MimeText* textPart = new MimeText();
     textPart->setText(d->textContent.toUtf8());
-    return QSharedPointer<MimePart>(textPart);
+    return textPart;
 }
 
-QSharedPointer<MimePart> MailTemplate::htmlPart() {
+MimePart* MailTemplate::htmlPart() {
     MimeHtml* htmlPart = new MimeHtml();
     htmlPart->setHtml(d->htmlContent.toUtf8());
-    return QSharedPointer<MimePart>(htmlPart);
+    return htmlPart;
 }
 
 QString MailTemplate::performReplacements(QString sourceString) {

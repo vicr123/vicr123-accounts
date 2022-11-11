@@ -57,9 +57,9 @@ QString MailMessage::subject() {
 [[maybe_unused]] void MailMessage::Send(const QDBusMessage& message) {
     message.setDelayedReply(true);
 
-    auto mailMessage = QSharedPointer<MimeMessage>(new MimeMessage());
-    mailMessage->addTo(new EmailAddress(d->to));
-    mailMessage->setSender(new EmailAddress(d->fromAddress, d->from));
+    auto mailMessage = new MimeMessage;
+    mailMessage->addTo(EmailAddress(d->to));
+    mailMessage->setSender(EmailAddress(d->fromAddress, d->from));
     mailMessage->setSubject(d->subject);
 
     auto* htmlPart = new MimeHtml();
