@@ -21,17 +21,18 @@
 
 #include "fidoutils.h"
 #include "logger.h"
+#include "mailmessage.h"
 #include "twofactor.h"
 #include "useraccount.h"
 #include "utils.h"
 #include "validation.h"
 #include <QDateTime>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
 #include <QSqlDatabase>
 #include <QSqlQuery>
-#include <QJsonDocument>
-#include <QJsonArray>
 
 struct AccountManagerPrivate {
 };
@@ -502,4 +503,9 @@ QVariantMap AccountManager::ProvisionTokenByMethod(QString method, QString usern
 
     Utils::sendDbusError(Utils::InvalidInput, message);
     return {};
+}
+
+QDBusObjectPath AccountManager::CreateMailMessage(const QString& to, const QDBusMessage& message) {
+    auto* mailMessage = new MailMessage(to);
+    return mailMessage->path();
 }
