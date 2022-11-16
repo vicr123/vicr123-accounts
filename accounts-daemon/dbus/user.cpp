@@ -96,25 +96,9 @@ void User::SetUsername(QString username, const QDBusMessage& message) {
 }
 
 void User::SetPassword(QString password, const QDBusMessage& message) {
-    if (password.isEmpty()) {
-        Utils::sendDbusError(Utils::InvalidInput, message);
-        return;
-    }
-
-    if (!Validation::validatePassword(password)) {
-        Utils::sendDbusError(Utils::InvalidInput, message);
-        return;
-    }
-
-    QString hashedPassword = Utils::generateHashedPassword(password);
-
-    QSqlQuery query;
-    query.prepare("UPDATE users SET password=:password WHERE id=:id");
-    query.bindValue(":password", hashedPassword);
-    query.bindValue(":id", d->parent->id());
-    if (!query.exec()) {
-        Utils::sendDbusError(Utils::QueryError, message);
-        return;
+    auto error = setPassword(password);
+    if (error != Utils::NoError) {
+        Utils::sendDbusError(error, message);
     }
 }
 
@@ -247,4 +231,31 @@ QDBusObjectPath User::CreateMailMessage(const QDBusMessage& message) {
 
     auto* mailMessage = new MailMessage(this->email());
     return mailMessage->path();
+}
+
+Utils::DBusError User::setPassword(QString password) {
+    if (password.isEmpty()) {
+        return Utils::InvalidInput;
+    }
+
+    if (!Validation::validatePassword(password)) {
+        return Utils::InvalidInput;
+    }
+
+    QString hashedPassword = Utils::generateHashedPassword(password);
+
+    QSqlQuery query;
+    query.prepare("UPDATE users SET password=:password WHERE id=:id");
+    query.bindValue(":password", hashedPassword);
+    query.bindValue(":id", d->parent->id());
+    if (!query.exec()) {
+        return Utils::QueryError;
+    }
+
+    if (d->verified) {
+        Utils::sendTemplateEmail("passwordchange", {d->email}, "en", {
+              {"user", d->username}
+          });
+    }
+    return Utils::NoError;
 }

@@ -23,6 +23,7 @@
 #include <QDBusAbstractAdaptor>
 #include <QDBusMessage>
 #include <QDBusObjectPath>
+#include "utils.h"
 
 class UserAccount;
 struct UserPrivate;
@@ -43,6 +44,8 @@ class User : public QDBusAbstractAdaptor {
         QString username();
         QString email();
         bool verified();
+
+        Utils::DBusError setPassword(QString password);
 
     public slots:
         Q_SCRIPTABLE void SetUsername(QString username, const QDBusMessage& message);

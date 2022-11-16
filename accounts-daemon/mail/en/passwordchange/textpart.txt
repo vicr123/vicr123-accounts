@@ -1,0 +1,10 @@
+Hi {user}!
+
+Looks like the password on your Victor Tran account was changed. Nice work!
+
+If this wasn't you, reply to this email to let us know immediately, as your account might have been compromised.
+
+Best Regards,
+- Victor Tran
+
+P.S. This email not for you? Reply to this message and we'll sort it out. Thanks!

@@ -27,6 +27,7 @@
 
 namespace Utils {
     enum DBusError {
+        NoError,
         InternalError,
         NoAccount,
         QueryError,

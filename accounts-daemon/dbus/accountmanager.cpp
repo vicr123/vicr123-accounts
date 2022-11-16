@@ -26,6 +26,7 @@
 #include "useraccount.h"
 #include "utils.h"
 #include "validation.h"
+#include "user.h"
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -153,6 +154,8 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
         return 0;
     }
 
+    auto* account = UserAccount::accountForId(id);
+
     // Now check for password resets
     bool havePasswordReset = false;
     {
@@ -170,22 +173,11 @@ QString AccountManager::ProvisionToken(QString username, QString password, QStri
                         return 0;
                     }
 
-                    QString newPassword = extraOptions.value("newPassword").toString();
-
-                    if (!Validation::validatePassword(newPassword)) {
-                        Utils::sendDbusError(Utils::InvalidInput, message);
-                        return 0;
-                    }
-
                     // Set the new password on this user account
-                    // TODO: use existing code in User class
-                    passwordHash = Utils::generateHashedPassword(newPassword);
-                    QSqlQuery updateQuery;
-                    updateQuery.prepare("UPDATE users SET password=:password WHERE id=:id");
-                    updateQuery.bindValue(":id", id);
-                    updateQuery.bindValue(":password", passwordHash);
-                    if (!updateQuery.exec()) {
-                        Utils::sendDbusError(Utils::QueryError, message);
+                    QString newPassword = extraOptions.value("newPassword").toString();
+                    auto error = account->user()->setPassword(newPassword);
+                    if (error) {
+                        Utils::sendDbusError(error, message);
                         return 0;
                     }
 
