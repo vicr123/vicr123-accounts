@@ -1,0 +1,18 @@
+Hi {user}!
+
+Thanks for signing up for a Victor Tran account.
+
+The verification code you'll need to enter to verify your email is shown below.
+
+{code}
+
+Go to the Account screen in any Victor Tran application where you have signed in and enter this code in to verify your email.
+
+Be speedy though, this verification code will expire in 24 hours. You can request a new verification code in the Account screen in any Victor Tran application.
+
+Thanks for signing up for a Victor Tran account!
+
+Best Regards,
+- Victor Tran
+
+P.S. This email not for you? Reply to this message and we'll sort it out. Thanks!

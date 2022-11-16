@@ -42,14 +42,26 @@ MailTemplate::MailTemplate(QString templateName, QString locale, QMap<QString, Q
     QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);
     QDir maildir(qEnvironmentVariable("MAIL_MAILDIR", settings.value("mail/maildir").toString()));
 
-    QFile mailfile = maildir.absoluteFilePath(QStringLiteral("%1/%2").arg(locale, templateName));
-    if (!mailfile.exists()) mailfile.setFileName(maildir.absoluteFilePath(QStringLiteral("%1/%2").arg(locale, templateName)));
+    QDir templatePath(maildir.absoluteFilePath(QStringLiteral("%1/%2").arg(locale, templateName)));
 
-    mailfile.open(QFile::ReadOnly);
-    QStringList fileParts = QString(mailfile.readAll()).split("---");
-    d->metadata = QJsonDocument::fromJson(fileParts.first().trimmed().toUtf8()).object();
-    d->textContent = performReplacements(fileParts.at(1).trimmed());
-    d->htmlContent = performReplacements(fileParts.at(2).trimmed());
+    QFile mailMeta = templatePath.absoluteFilePath("meta.json");
+    if (!mailMeta.open(QFile::ReadOnly)) {
+        //TODO: Figure out what to do if the email can't be opened
+        return;
+    }
+
+    d->metadata = QJsonDocument::fromJson(mailMeta.readAll()).object();
+    mailMeta.close();
+
+    QFile textPart = templatePath.absoluteFilePath(d->metadata.value("text").toString());
+    textPart.open(QFile::ReadOnly);
+    d->textContent = performReplacements(QString(textPart.readAll()).trimmed());
+    textPart.close();
+
+    QFile htmlPart = templatePath.absoluteFilePath(d->metadata.value("html").toString());
+    htmlPart.open(QFile::ReadOnly);
+    d->htmlContent = performReplacements(QString(htmlPart.readAll()).trimmed());
+    htmlPart.close();
 }
 
 MailTemplate::~MailTemplate() {
