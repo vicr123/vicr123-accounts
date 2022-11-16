@@ -22,6 +22,7 @@
 
 #include <QDBusAbstractAdaptor>
 #include <QDBusMessage>
+#include "utils.h"
 
 struct OtpBackupKeys {
     QString key;
@@ -47,6 +48,8 @@ class TwoFactor : public QDBusAbstractAdaptor {
         bool twoFactorEnabled();
         QString secretKey();
         QList<OtpBackupKeys> backupKeys();
+
+        Utils::DBusError regenerateBackupKeys();
 
     public slots:
         Q_SCRIPTABLE QString GenerateTwoFactorKey(const QDBusMessage& message);

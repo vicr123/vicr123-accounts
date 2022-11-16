@@ -44,6 +44,7 @@ class User : public QDBusAbstractAdaptor {
         QString username();
         QString email();
         bool verified();
+        QString locale();
 
         Utils::DBusError setPassword(QString password);
 

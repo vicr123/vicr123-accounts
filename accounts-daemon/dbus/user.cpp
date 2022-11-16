@@ -253,9 +253,14 @@ Utils::DBusError User::setPassword(QString password) {
     }
 
     if (d->verified) {
-        Utils::sendTemplateEmail("passwordchange", {d->email}, "en", {
+        Utils::sendTemplateEmail("passwordchange", {d->email}, this->locale(), {
               {"user", d->username}
           });
     }
     return Utils::NoError;
+}
+
+QString User::locale() {
+    // TODO
+    return "en";
 }

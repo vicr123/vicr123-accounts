@@ -24,6 +24,7 @@
 #include <QtConcurrent>
 #include "useraccount.h"
 #include "utils.h"
+#include "user.h"
 
 struct TwoFactorPrivate {
     UserAccount* parent;
@@ -152,7 +153,18 @@ void TwoFactor::EnableTwoFactorAuthentication(QString otpKey, const QDBusMessage
 
     d->enabled = true;
     emit TwoFactorEnabledChanged(d->enabled);
-    this->RegenerateBackupKeys(message);
+
+    auto error = this->regenerateBackupKeys();
+    if (error != Utils::NoError) {
+        Utils::sendDbusError(error, message);
+        return;
+    }
+
+    if (d->parent->user()->verified()) {
+        Utils::sendTemplateEmail("2fa-on", {d->parent->user()->email()}, d->parent->user()->locale(), {
+                                                                                                          {"user", d->parent->user()->username()}
+                                                                                                      });
+    }
 }
 
 void TwoFactor::DisableTwoFactorAuthentication(const QDBusMessage& message) {
@@ -174,13 +186,32 @@ void TwoFactor::DisableTwoFactorAuthentication(const QDBusMessage& message) {
 
     d->enabled = false;
     emit TwoFactorEnabledChanged(d->enabled);
+
+    if (d->parent->user()->verified()) {
+        Utils::sendTemplateEmail("2fa-off", {d->parent->user()->email()}, d->parent->user()->locale(), {
+                                             {"user", d->parent->user()->username()}
+                                         });
+    }
 }
 
 void TwoFactor::RegenerateBackupKeys(const QDBusMessage& message) {
+    auto error = regenerateBackupKeys();
+    if (error != Utils::NoError) {
+        Utils::sendDbusError(error, message);
+        return;
+    }
+
+    if (d->parent->user()->verified()) {
+        Utils::sendTemplateEmail("2fa-recovery-regenerated", {d->parent->user()->email()}, d->parent->user()->locale(), {
+                                             {"user", d->parent->user()->username()}
+                                         });
+    }
+}
+
+Utils::DBusError TwoFactor::regenerateBackupKeys() {
     if (!d->enabled) {
         //2FA should be enabled first
-        Utils::sendDbusError(Utils::TwoFactorDisabled, message);
-        return;
+        return Utils::TwoFactorDisabled;
     }
 
     QSqlDatabase db;
@@ -191,8 +222,7 @@ void TwoFactor::RegenerateBackupKeys(const QDBusMessage& message) {
     deleteQuery.bindValue(":id", d->parent->id());
     if (!deleteQuery.exec()) {
         db.rollback();
-        Utils::sendDbusError(Utils::QueryError, message);
-        return;
+        return Utils::QueryError;
     }
 
     QList<OtpBackupKeys> backups;
@@ -215,15 +245,15 @@ void TwoFactor::RegenerateBackupKeys(const QDBusMessage& message) {
 
     if (!query.execBatch()) {
         db.rollback();
-        Utils::sendDbusError(Utils::QueryError, message);
-        return;
+        return Utils::QueryError;
     }
 
     if (db.commit()) {
-        Utils::sendDbusError(Utils::QueryError, message);
-        return;
+        return Utils::QueryError;
     }
 
     d->backups = backups;
     emit BackupKeysChanged(backups);
+
+    return Utils::NoError;
 }

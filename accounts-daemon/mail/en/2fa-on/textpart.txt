@@ -1,0 +1,16 @@
+Hi {user}!
+
+Looks like you've switched on Two Factor Authentication for your Victor Tran account. Congratulations on levelling up your security!
+
+From now on, when you log in, you'll be asked for both your password and the 6 digit code that is generated on your mobile device.
+
+While you're here, we'll take this moment to urge you to save your backup codes - they'll be handy in case your mobile device is unavailable when you need to log in. Each code can only be used once, but you can regenerate them at any time.
+
+In order to manage Two Factor Authentication, or to regenerate your backup codes, go ahead and visit the Account screen in any Victor Tran application.
+
+If this wasn't you, reply to this email to let us know immediately, as your account might have been compromised.
+
+Best Regards,
+- Victor Tran
+
+P.S. This email not for you? Reply to this message and we'll sort it out. Thanks!
