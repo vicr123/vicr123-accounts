@@ -1,0 +1,93 @@
+<html>
+<head>
+    <style>
+        @font-face {
+            font-family: 'Contemporary';
+            font-style: normal;
+            font-weight: 400;
+            src: local('Contemporary'), local('Contemporary-Regular'), url('https://vicr123.com/typeface/Contemporary-Regular.ttf');
+        }
+
+        body {
+            font-family: "Contemporary";
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 12pt;
+        }
+
+        div.container {
+            border: 1px solid white;
+            background-color: rgb(40, 40, 40);
+            color: white;
+            max-width: 600px;
+        }
+
+        h1.header {
+            margin: 0px;
+            padding: 9px;
+            font-weight: normal;
+            font-size: 15pt;
+            border-bottom: 1px solid white;
+        }
+
+        div.content {
+            padding: 9px;
+        }
+
+        p {
+            margin: 0px;
+        }
+
+        footer {
+            padding-top: 9px;
+            font-size: 8pt;
+        }
+
+        div.logo {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            max-width: 600px;
+
+            margin-bottom: 12px;
+        }
+
+        div.logo p {
+            font-size: 48px;
+            margin-top: 0px;
+            margin-bottom: 0px;
+            margin-left: 9px;
+        }
+    </style>
+</head>
+<body>
+<div class="logo">
+    <img src="https://vicr123.com/img/logo.svg" height="64" />
+    <p>Victor Tran</p>
+</div>
+<div class="container">
+    <h1 class="header">
+        A FIDO U2F security key has been removed from your Victor Tran account
+    </h1>
+    <div class="content">
+        <p>Hi {user}!</p>
+        <p>&nbsp;</p>
+        <p>Looks like you've removed the security key, <b>{key}</b>, from your Victor Tran account.</p>
+        <p>&nbsp;</p>
+        <p>From now on, you won't be able to use this security key to log into {application}.</p>
+        <p>&nbsp;</p>
+        <p>In order to manage your FIDO U2F security keys, go ahead and visit the Account screen in any Victor Tran application.</p>
+        <p>&nbsp;</p>
+        <p>If this wasn't you, reply to this email to let us know immediately, as your account might have been compromised.</p>
+        <p>&nbsp;</p>
+        <p>Best Regards,</p>
+        <p>- Victor Tran</p>
+    </div>
+</div>
+<footer>
+    This email not for you? Reply to this message and we'll sort it out. Thanks!
+</footer>
+</body>
+</html>

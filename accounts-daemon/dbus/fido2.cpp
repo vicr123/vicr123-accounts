@@ -159,16 +159,37 @@ void Fido2::CompleteRegister(QString response, QStringList expectOrigins, QStrin
         Utils::sendDbusError(Utils::QueryError, message);
         return;
     }
+
+    if (d->parent->user()->verified()) {
+        Utils::sendTemplateEmail("fido-new-key", {d->parent->user()->email()}, d->parent->user()->locale(), {
+                                             {"user", d->parent->user()->username()},
+                                             {"key", keyName},
+                                             {"application", d->lastRpName}
+                                         });
+    }
 }
 
 void Fido2::DeleteKey(int id, const QDBusMessage& message) {
     QSqlQuery query;
-    query.prepare("DELETE FROM fido WHERE userid=:userid AND id=:id");
+    query.prepare("DELETE FROM fido WHERE userid=:userid AND id=:id RETURNING name, application");
     query.bindValue(":userid", d->parent->id());
     query.bindValue(":id", id);
 
     if (!query.exec()) {
         Utils::sendDbusError(Utils::QueryError, message);
+        return;
+    }
+
+    query.next();
+    auto keyName = query.value("name").toString();
+    auto application = query.value("application").toString();
+
+    if (d->parent->user()->verified()) {
+        Utils::sendTemplateEmail("fido-remove-key", {d->parent->user()->email()}, d->parent->user()->locale(), {
+                                             {"user", d->parent->user()->username()},
+                                             {"key", keyName},
+                                             {"application", application}
+                                         });
     }
 }
 
