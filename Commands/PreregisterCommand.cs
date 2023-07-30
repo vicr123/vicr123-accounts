@@ -34,7 +34,7 @@ public static class PreregisterCommand
             {
                 "platform" => AuthenticatorAttachment.Platform,
                 "cross-platform" => AuthenticatorAttachment.CrossPlatform,
-                _ => throw new ArgumentException()
+                _ => null
             }
         }, AttestationConveyancePreference.None, new AuthenticationExtensionsClientInputs
         {

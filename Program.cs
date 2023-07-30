@@ -19,7 +19,7 @@ var userIdOption = new Option<string>("--userid", "User ID")
 {
     IsRequired = true
 };
-var authenticatorAttachmentTypeOption = new Option<string>("--authattachment", () => "platform", "Authenticator Attachment");
+var authenticatorAttachmentTypeOption = new Option<string>("--authattachment", () => "", "Authenticator Attachment");
 
 var preregisterCommand = new Command("preregister", "Generate information to register a new FIDO U2F Key")
 {
