@@ -1,5 +1,5 @@
-FROM fedora:36 AS fido
-RUN dnf install dotnet-sdk-6.0 git -y
+FROM fedora:38 AS fido
+RUN dnf install dotnet-sdk-7.0 git -y
 RUN git clone https://github.com/vicr123/vicr123-accounts.git
 WORKDIR /vicr123-accounts
 RUN git checkout fido-support
