@@ -66,7 +66,7 @@ Fido2::~Fido2() {
 }
 
 QString Fido2::PrepareRegister(QString application, QString rp, int authenticatorAttachment, const QDBusMessage& message) {
-    if (authenticatorAttachment > 1 || authenticatorAttachment < 0) {
+    if (authenticatorAttachment > 2 || authenticatorAttachment < 0) {
         Utils::sendDbusError(Utils::InvalidInput, message);
         return "";
     }
@@ -76,9 +76,19 @@ QString Fido2::PrepareRegister(QString application, QString rp, int authenticato
         "--rpname", application,
         "--rpid", rp,
         "--username", d->parent->user()->username(),
-        "--userid", QString::number(d->parent->id()),
-        "--authattachment", authenticatorAttachment == 0 ? "platform" : "cross-platform"
+        "--userid", QString::number(d->parent->id())
     };
+
+    switch (authenticatorAttachment) {
+        case 0:
+            args.append({"--authattachment", "platform"});
+            break;
+        case 1:
+            args.append({"--authattachment", "cross-platform"});
+            break;
+        default:
+            break;
+    }
 
     d->lastRpName = application;
     d->lastRpId = rp;

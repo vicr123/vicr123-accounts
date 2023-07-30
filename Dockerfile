@@ -7,9 +7,9 @@ RUN dotnet restore "vicr123-accounts-fido.csproj"
 RUN dotnet build "vicr123-accounts-fido.csproj" -c Release -o /app/fido/build
 RUN dotnet publish "vicr123-accounts-fido.csproj" -c Release -o /app/fido/publish
 
-FROM fedora:36 AS final
+FROM fedora:38 AS final
 
-RUN dnf install qt6-qtbase-devel qt6-qtbase-postgresql dbus-daemon dotnet-runtime-6.0 -y
+RUN dnf install qt6-qtbase-devel qt6-qtbase-postgresql dbus-daemon dotnet-runtime-7.0 -y
 COPY . /usr/src/vicr123-accounts
 WORKDIR /usr/src/vicr123-accounts
 RUN mkdir build
