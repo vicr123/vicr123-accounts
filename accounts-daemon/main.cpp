@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);
+    QSettings settings(Utils::settingsFile(), QSettings::IniFormat);
     if (settings.value("dbus/bus").toString() == "dedicated") {
         new DBusDaemon(qEnvironmentVariable("DBUS_CONFIGURATION_FILE", settings.value("dbus/configuration").toString()));
         QDBusConnection::connectToBus("unix:path=/var/vicr123-accounts/vicr123-accounts-bus", "accounts");

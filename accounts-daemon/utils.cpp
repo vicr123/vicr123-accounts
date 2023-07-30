@@ -31,7 +31,7 @@
 #include <src/SmtpMime>
 
 QDBusConnection Utils::accountsBus() {
-    QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);
+    QSettings settings(Utils::settingsFile(), QSettings::IniFormat);
     if (settings.value("dbus/bus").toString() == "dedicated") {
         return QDBusConnection("accounts");
     } else {
@@ -202,7 +202,7 @@ bool Utils::sendVerificationEmail(quint64 user) {
 
 QString Utils::fidoHelperPath()
 {
-    QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);
+    QSettings settings(Utils::settingsFile(), QSettings::IniFormat);
     return settings.value("fido/executable").toString();
 }
 
@@ -247,4 +247,11 @@ QFuture<void> Utils::sendMailMessage(MimeMessage* message) {
         client.quit();
         promise.finish();
     });
+}
+
+QString Utils::settingsFile() {
+    auto settingsFile = QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf");
+    if (qEnvironmentVariableIsSet("ACCOUNTS_SETTINGS")) settingsFile = qEnvironmentVariable("ACCOUNTS_SETTINGS");
+
+    return settingsFile;
 }

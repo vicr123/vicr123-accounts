@@ -20,6 +20,7 @@
 #include "database.h"
 
 #include "logger.h"
+#include "utils.h"
 #include <QFile>
 #include <QSettings>
 #include <QSqlDatabase>
@@ -31,7 +32,7 @@ Database::Database(QObject* parent) :
 }
 
 bool Database::init() {
-    QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);
+    QSettings settings(Utils::settingsFile(), QSettings::IniFormat);
     if (!QSqlDatabase::isDriverAvailable(settings.value("database/driver").toString())) {
         Logger::error() << "The database driver is not available.";
         return false;

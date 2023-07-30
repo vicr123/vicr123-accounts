@@ -45,6 +45,7 @@ namespace Utils {
         EmailError
     };
 
+    QString settingsFile();
     QDBusConnection accountsBus();
     QString fidoHelperPath();
     QByteArray generateRandomBytes(int count);
