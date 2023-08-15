@@ -1,12 +1,12 @@
 Hi {user}!
 
-Looks like you've added a new security key, {key}, to your Victor Tran account. Congratulations on levelling up your security!
+Looks like you've added a new passkey, {key}, to your Victor Tran account. Congratulations on levelling up your security!
 
-From now on, you'll have the option to log in with this key instead of your password (and Two Factor Authentication code if Two Factor Authentication is on)
+From now on, you'll have the option to log in with this passkey instead of your password (and Two Factor Authentication code if Two Factor Authentication is on)
 
-Since you registered this key in {application}, you'll only be able to log in using this key in {application}. If you need to, you can register the same key in different applications.
+Since you registered this passkey in {application}, you'll only be able to log in using this passkey in {application}. If you need to, you can register the same passkey in different applications.
 
-In order to manage your FIDO U2F security keys, go ahead and visit the Account screen in any Victor Tran application.
+In order to manage your passkeys, go ahead and visit the Account screen in any Victor Tran application.
 
 If this wasn't you, reply to this email to let us know immediately, as your account might have been compromised.
 

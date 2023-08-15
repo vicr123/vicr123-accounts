@@ -1,10 +1,10 @@
 Hi {user}!
 
-Looks like you've removed the security key, {key}, from your Victor Tran account.
+Looks like you've removed the passkey, {key}, from your Victor Tran account.
 
-From now on, you won't be able to use this security key to log into {application}.
+From now on, you won't be able to use this passkey to log into {application}.
 
-In order to manage your FIDO U2F security keys, go ahead and visit the Account screen in any Victor Tran application.
+In order to manage your passkeys, go ahead and visit the Account screen in any Victor Tran application.
 
 If this wasn't you, reply to this email to let us know immediately, as your account might have been compromised.
 
