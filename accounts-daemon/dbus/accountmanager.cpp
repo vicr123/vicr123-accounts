@@ -38,7 +38,7 @@
 #include "vicr123-accounts-fido/fido.h"
 
 struct AccountManagerPrivate {
-        Fido fido;
+        tdotnet::vicr123_accounts_fido::Fido fido;
 };
 
 AccountManager::AccountManager() :

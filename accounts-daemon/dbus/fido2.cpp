@@ -39,7 +39,7 @@ struct Fido2Private {
         QString lastRpName;
         QString lastRpId;
 
-        Fido fido;
+        tdotnet::vicr123_accounts_fido::Fido fido;
 };
 
 QDBusArgument& operator<<(QDBusArgument& argument, const Fido2::Fido2Key& key) {
