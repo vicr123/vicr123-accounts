@@ -20,7 +20,9 @@
 #ifndef FIDO2_H
 #define FIDO2_H
 
+#include <QCoroTask>
 #include <QDBusAbstractAdaptor>
+#include <QDBusConnection>
 #include <QDBusMessage>
 #include <QObject>
 
@@ -48,6 +50,9 @@ class Fido2 : public QDBusAbstractAdaptor {
 
     private:
         Fido2Private* d;
+
+        QCoro::Task<QString> privatePrepareRegister(QString application, QString rp, int authenticatorAttachment, const QDBusMessage& message);
+        QCoro::Task<> privateCompleteRegister(QString response, QStringList expectOrigins, QString keyName, const QDBusMessage& message);
 };
 
 Q_DECLARE_METATYPE(Fido2::Fido2Key)

@@ -35,7 +35,10 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 
+#include "vicr123-accounts-fido/fido.h"
+
 struct AccountManagerPrivate {
+        Fido fido;
 };
 
 AccountManager::AccountManager() :
@@ -376,66 +379,59 @@ QStringList AccountManager::TokenProvisioningMethods(QString username, QString a
 
     return methods;
 }
+
 QVariantMap AccountManager::ProvisionTokenByMethod(QString method, QString username, QString application, QVariantMap extraOptions, const QDBusMessage& message) {
+    message.setDelayedReply(true);
+    this->privateProvisionTokenByMethod(method, username, application, extraOptions, message).then([message](QVariantMap result) {
+        if (!result.isEmpty()) {
+            Utils::accountsBus().send(message.createReply(result));
+        }
+    });
+    return {};
+}
+
+QDBusObjectPath AccountManager::CreateMailMessage(const QString& to, const QDBusMessage& message) {
+    auto* mailMessage = new MailMessage(to);
+    return mailMessage->path();
+}
+
+QCoro::Task<QVariantMap> AccountManager::privateProvisionTokenByMethod(QString method, QString username, QString application, QVariantMap extraOptions, const QDBusMessage& message) {
     quint64 id = userIdByUsername(username);
     if (id == 0) {
         Utils::sendDbusError(Utils::NoAccount, message);
-        return {};
+        co_return {};
     }
 
     auto availableMethods = TokenProvisioningMethods(username, application, message);
     if (!availableMethods.contains(method)) {
         Utils::sendDbusError(Utils::InvalidInput, message);
-        return {};
+        co_return {};
     }
 
     if (method == "password") {
         if (!extraOptions.contains("password") ) {
             Utils::sendDbusError(Utils::InvalidInput, message);
-            return {};
+            co_return {};
         }
 
         auto token = ProvisionToken(username, extraOptions.value("password").toString(), application, extraOptions, message);
-        return QVariantMap({
+        co_return QVariantMap({
             {"token", token}
         });
     } else if (method == "fido") {
         if (extraOptions.contains("response")) {
             if (!extraOptions.contains("response") && !extraOptions.contains("pregetOptions") && !extraOptions.contains("expectOrigins")) {
                 Utils::sendDbusError(Utils::InvalidInput, message);
-                return {};
+                co_return {};
             }
-
-            QStringList args = {
-                "preget",
-                "--rpname", extraOptions.value("rpname").toString(),
-                "--rpid", extraOptions.value("rpid").toString()
-            };
-
             QJsonObject payload;
             payload.insert("existingCreds", QJsonArray::fromStringList(FidoUtils::FidoCredsForUser(id, application)));
             payload.insert("extraOrigins", QJsonArray::fromStringList(extraOptions.value("expectOrigins").toStringList()));
             payload.insert("response", extraOptions.value("response").toString());
             payload.insert("pregetOptions", extraOptions.value("pregetOptions").toString());
 
-            QProcess fidoHelper;
-            fidoHelper.start(Utils::fidoHelperPath(), args);
-            fidoHelper.write(QJsonDocument(payload).toJson());
-            fidoHelper.closeWriteChannel();
-            fidoHelper.waitForFinished(-1);
-
-            if (fidoHelper.error() != QProcess::UnknownError) {
-                Utils::sendDbusError(Utils::FidoSupportUnavailable, message);
-                return {};
-            }
-
-            if (fidoHelper.exitCode() != 0) {
-                Utils::sendDbusError(Utils::InternalError, message);
-                return {};
-            }
-
-            auto outputStr = fidoHelper.readAllStandardOutput();
-            auto output = QJsonDocument::fromJson(outputStr).object();
+            auto preget = co_await d->fido.preGet(extraOptions.value("rpname").toString(), extraOptions.value("rpid").toString(), QJsonDocument(payload).toJson());
+            auto output = QJsonDocument::fromJson(preget.toUtf8()).object();
 
             auto usedCred = output.value("usedCred").toString().toUtf8();
             auto newCred = output.value("newCred").toString().toUtf8();
@@ -447,57 +443,31 @@ QVariantMap AccountManager::ProvisionTokenByMethod(QString method, QString usern
             fidoQuery.bindValue(":id", id);
             if (!fidoQuery.exec()) {
                 Utils::sendDbusError(Utils::QueryError, message);
-                return {};
+                co_return {};
             }
 
             //Provision a token
             auto token = ForceProvisionToken(id, application, message);
-            return QVariantMap({
+            co_return QVariantMap({
                 {"token", token}
             });
         } else {
             if (!extraOptions.contains("rpname") && !extraOptions.contains("rpid")) {
                 Utils::sendDbusError(Utils::InvalidInput, message);
-                return {};
+                co_return {};
             }
-
-            QStringList args = {
-                "preget",
-                "--rpname", extraOptions.value("rpname").toString(),
-                "--rpid", extraOptions.value("rpid").toString()
-            };
 
             QJsonObject payload;
             payload.insert("existingCreds", QJsonArray::fromStringList(FidoUtils::FidoCredsForUser(id, application)));
 
-            QProcess fidoHelper;
-            fidoHelper.start(Utils::fidoHelperPath(), args);
-            fidoHelper.write(QJsonDocument(payload).toJson());
-            fidoHelper.closeWriteChannel();
-            fidoHelper.waitForFinished(-1);
+            auto preget = co_await d->fido.preGet(extraOptions.value("rpname").toString(), extraOptions.value("rpid").toString(), QJsonDocument(payload).toJson());
 
-            if (fidoHelper.error() != QProcess::UnknownError) {
-                Utils::sendDbusError(Utils::FidoSupportUnavailable, message);
-                return {};
-            }
-
-            if (fidoHelper.exitCode() != 0) {
-                Utils::sendDbusError(Utils::InternalError, message);
-                return {};
-            }
-
-            auto output = fidoHelper.readAllStandardOutput();
-            return QVariantMap({
-                {"options", output}
+            co_return QVariantMap({
+                {"options", preget.toUtf8()}
             });
         }
     }
 
     Utils::sendDbusError(Utils::InvalidInput, message);
-    return {};
-}
-
-QDBusObjectPath AccountManager::CreateMailMessage(const QString& to, const QDBusMessage& message) {
-    auto* mailMessage = new MailMessage(to);
-    return mailMessage->path();
+    co_return {};
 }

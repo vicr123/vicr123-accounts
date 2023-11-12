@@ -1,6 +1,8 @@
 project(vicr123accounts VERSION 1.0.0 LANGUAGES CXX)
 
 find_package(Qt6 REQUIRED COMPONENTS DBus Sql Network Concurrent)
+find_package(QCoro6 REQUIRED COMPONENTS Core)
+find_package(tdotnetbridge REQUIRED)
 include(GNUInstallDirs)
 
 set(SOURCES
@@ -40,13 +42,17 @@ set(HEADERS
     fidoutils.h
 )
 
+tdotnet_add_dotnet_project(vicr123-accounts-fido
+        PROJECT Webauthn/vicr123-accounts-fido/vicr123-accounts-fido.csproj)
+
 add_executable(vicr123accounts ${SOURCES} ${HEADERS})
 
-target_link_libraries(vicr123accounts Qt6::DBus Qt6::Sql Qt6::Network Qt6::Concurrent smtpemail)
+target_link_libraries(vicr123accounts Qt6::DBus Qt6::Sql Qt6::Network Qt6::Concurrent QCoro6::Core smtpemail tdotnetbridge vicr123-accounts-fido)
 target_include_directories(vicr123accounts PUBLIC ../SMTPEmail/)
 target_compile_definitions(vicr123accounts PRIVATE SYSCONFDIR=\"${CMAKE_INSTALL_FULL_SYSCONFDIR}\")
 
 set_target_properties(vicr123accounts PROPERTIES
+    CXX_STANDARD 20
     OUTPUT_NAME vicr123-accounts)
 
 install(TARGETS vicr123accounts

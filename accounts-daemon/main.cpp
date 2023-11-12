@@ -30,8 +30,13 @@
 #include <QSqlDatabase>
 #include <logger.h>
 
+#include <qdotnetadapter.h>
+#include <qdotnetref.h>
+
 int main(int argc, char* argv[]) {
     QCoreApplication a(argc, argv);
+
+    QDotNetAdapter::instance().loadAssembly(QDotNetHost::findDotNetLibrary("vicr123-accounts-fido"));
 
     Database* db = new Database();
     if (!db->init()) {

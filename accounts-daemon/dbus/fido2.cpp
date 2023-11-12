@@ -30,12 +30,16 @@
 #include <QProcess>
 #include <QSqlQuery>
 
+#include "vicr123-accounts-fido/fido.h"
+
 struct Fido2Private {
         UserAccount* parent;
 
         QJsonObject prepareCache;
         QString lastRpName;
         QString lastRpId;
+
+        Fido fido;
 };
 
 QDBusArgument& operator<<(QDBusArgument& argument, const Fido2::Fido2Key& key) {
@@ -66,117 +70,21 @@ Fido2::~Fido2() {
 }
 
 QString Fido2::PrepareRegister(QString application, QString rp, int authenticatorAttachment, const QDBusMessage& message) {
-    if (authenticatorAttachment > 2 || authenticatorAttachment < 0) {
-        Utils::sendDbusError(Utils::InvalidInput, message);
-        return "";
-    }
+    message.setDelayedReply(true);
+    this->privatePrepareRegister(application, rp, authenticatorAttachment, message).then([message](QString retval) {
+        if (!retval.isEmpty()) {
+            Utils::accountsBus().send(message.createReply(retval));
+        }
+    });
 
-    QStringList args = {
-        "preregister",
-        "--rpname", application,
-        "--rpid", rp,
-        "--username", d->parent->user()->username(),
-        "--userid", QString::number(d->parent->id())
-    };
-
-    switch (authenticatorAttachment) {
-        case 0:
-            args.append({"--authattachment", "platform"});
-            break;
-        case 1:
-            args.append({"--authattachment", "cross-platform"});
-            break;
-        default:
-            break;
-    }
-
-    d->lastRpName = application;
-    d->lastRpId = rp;
-
-    QJsonObject payload;
-    payload.insert("existingCreds", QJsonArray::fromStringList(FidoUtils::FidoCredsForUser(d->parent->id(), application)));
-
-    QProcess fidoHelper;
-    fidoHelper.start(Utils::fidoHelperPath(), args);
-    fidoHelper.write(QJsonDocument(payload).toJson());
-    fidoHelper.closeWriteChannel();
-    fidoHelper.waitForFinished(-1);
-
-    if (fidoHelper.error() != QProcess::UnknownError) {
-        Utils::sendDbusError(Utils::FidoSupportUnavailable, message);
-        return "";
-    }
-
-    if (fidoHelper.exitCode() != 0) {
-        Utils::sendDbusError(Utils::InternalError, message);
-        return "";
-    }
-
-    auto output = fidoHelper.readAllStandardOutput();
-
-    d->prepareCache = QJsonDocument::fromJson(output).object();
-    return QJsonDocument(d->prepareCache).toJson();
+    return {};
 }
 
-void Fido2::CompleteRegister(QString response, QStringList expectOrigins, QString keyName,
-    const QDBusMessage& message) {
-
-    QJsonParseError parseError;
-    auto responseDoc = QJsonDocument::fromJson(response.toUtf8(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !responseDoc.isObject()) {
-        Utils::sendDbusError(Utils::InvalidInput, message);
-        return;
-    }
-    
-    QStringList args = {
-        "register",
-        "--rpname", d->lastRpName,
-        "--rpid", d->lastRpId,
-        "--userid", QString::number(d->parent->id())
-    };
-
-    QJsonObject payload;
-    payload.insert("preregisterOptions", d->prepareCache);
-    payload.insert("response", responseDoc.object());
-    payload.insert("expectOrigins", QJsonArray::fromStringList(expectOrigins));
-
-    QProcess fidoHelper;
-    fidoHelper.start(Utils::fidoHelperPath(), args);
-    fidoHelper.write(QJsonDocument(payload).toJson());
-    fidoHelper.closeWriteChannel();
-    fidoHelper.waitForFinished(-1);
-
-    if (fidoHelper.error() != QProcess::UnknownError) {
-        Utils::sendDbusError(Utils::FidoSupportUnavailable, message);
-        return;
-    }
-
-    if (fidoHelper.exitCode() != 0) {
-        Utils::sendDbusError(Utils::InternalError, message);
-        return;
-    }
-
-    auto output = fidoHelper.readAllStandardOutput();
-
-    QSqlQuery query;
-    query.prepare("INSERT INTO fido(userid, data, name, application) VALUES(:userid, :data, :name, :application)");
-    query.bindValue(":userid", d->parent->id());
-    query.bindValue(":data", output);
-    query.bindValue(":name", keyName);
-    query.bindValue(":application", d->lastRpName);
-
-    if (!query.exec()) {
-        Utils::sendDbusError(Utils::QueryError, message);
-        return;
-    }
-
-    if (d->parent->user()->verified()) {
-        Utils::sendTemplateEmail("fido-new-key", {d->parent->user()->email()}, d->parent->user()->locale(), {
-                                             {"user", d->parent->user()->username()},
-                                             {"key", keyName},
-                                             {"application", d->lastRpName}
-                                         });
-    }
+void Fido2::CompleteRegister(QString response, QStringList expectOrigins, QString keyName, const QDBusMessage& message) {
+    message.setDelayedReply(true);
+    this->privateCompleteRegister(response, expectOrigins, keyName, message).then([message]() {
+        Utils::accountsBus().send(message.createReply());
+    });
 }
 
 void Fido2::DeleteKey(int id, const QDBusMessage& message) {
@@ -221,4 +129,71 @@ QList<Fido2::Fido2Key> Fido2::GetKeys(const QDBusMessage& message) {
         keys.append(key);
     }
     return keys;
+}
+
+QCoro::Task<QString> Fido2::privatePrepareRegister(QString application, QString rp, int authenticatorAttachment, const QDBusMessage& message) {
+    if (authenticatorAttachment > 2 || authenticatorAttachment < 0) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        co_return "";
+    }
+
+    QString authenticatorAttachmentString;
+    switch (authenticatorAttachment) {
+        case 0:
+            authenticatorAttachmentString = "platform";
+        break;
+        case 1:
+            authenticatorAttachmentString = "cross-platform";
+        break;
+        default:
+            break;
+    }
+
+    d->lastRpName = application;
+    d->lastRpId = rp;
+
+    QJsonObject payload;
+    payload.insert("existingCreds", QJsonArray::fromStringList(FidoUtils::FidoCredsForUser(d->parent->id(), application)));
+
+    auto preregisterOutput = co_await d->fido.preRegisterPasskey(application, rp, d->parent->user()->username(), QString::number(d->parent->id()), authenticatorAttachmentString, QJsonDocument(payload).toJson());
+
+    d->prepareCache = QJsonDocument::fromJson(preregisterOutput.toUtf8()).object();
+    auto retval = QJsonDocument(d->prepareCache).toJson();
+    co_return retval;
+}
+
+QCoro::Task<> Fido2::privateCompleteRegister(QString response, QStringList expectOrigins, QString keyName, const QDBusMessage& message) {
+    QJsonParseError parseError;
+    auto responseDoc = QJsonDocument::fromJson(response.toUtf8(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !responseDoc.isObject()) {
+        Utils::sendDbusError(Utils::InvalidInput, message);
+        co_return;
+    }
+
+    QJsonObject payload;
+    payload.insert("preregisterOptions", d->prepareCache);
+    payload.insert("response", responseDoc.object());
+    payload.insert("expectOrigins", QJsonArray::fromStringList(expectOrigins));
+
+    auto securityKey = co_await d->fido.registerPasskey(d->lastRpName, d->lastRpId, QString::number(d->parent->id()), QJsonDocument(payload).toJson());
+
+    QSqlQuery query;
+    query.prepare("INSERT INTO fido(userid, data, name, application) VALUES(:userid, :data, :name, :application)");
+    query.bindValue(":userid", d->parent->id());
+    query.bindValue(":data", securityKey.toJson());
+    query.bindValue(":name", keyName);
+    query.bindValue(":application", d->lastRpName);
+
+    if (!query.exec()) {
+        Utils::sendDbusError(Utils::QueryError, message);
+        co_return;
+    }
+
+    if (d->parent->user()->verified()) {
+        Utils::sendTemplateEmail("fido-new-key", {d->parent->user()->email()}, d->parent->user()->locale(), {
+                                             {"user", d->parent->user()->username()},
+                                             {"key", keyName},
+                                             {"application", d->lastRpName}
+                                         });
+    }
 }

@@ -20,7 +20,9 @@
 #ifndef ACCOUNTMANAGER_H
 #define ACCOUNTMANAGER_H
 
+#include <QCoroTask>
 #include <QDBusAbstractAdaptor>
+#include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusObjectPath>
 
@@ -51,6 +53,8 @@ class AccountManager : public QObject {
 
     private:
         AccountManagerPrivate* d;
+
+        QCoro::Task<QVariantMap> privateProvisionTokenByMethod(QString method, QString username, QString application, QVariantMap extraOptions, const QDBusMessage& message);
 };
 
 #endif // ACCOUNTMANAGER_H
