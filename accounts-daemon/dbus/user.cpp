@@ -220,8 +220,8 @@ void User::SetEmailVerified(bool verified, const QDBusMessage& message) {
         return;
     }
 
-    d->verified = true;
-    emit VerifiedChanged(true);
+    d->verified = verified;
+    emit VerifiedChanged(verified);
 }
 QDBusObjectPath User::CreateMailMessage(const QDBusMessage& message) {
     if (!verified()) {

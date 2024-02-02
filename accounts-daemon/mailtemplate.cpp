@@ -19,6 +19,8 @@
  * *************************************/
 #include "mailtemplate.h"
 
+#include "utils.h"
+
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -39,7 +41,7 @@ MailTemplate::MailTemplate(QString templateName, QString locale, QMap<QString, Q
     d = new MailTemplatePrivate();
     d->replacements = replacements;
 
-    QSettings settings(QStringLiteral(SYSCONFDIR).append("/vicr123-accounts.conf"), QSettings::IniFormat);
+    QSettings settings(Utils::settingsFile(), QSettings::IniFormat);
     QDir maildir(qEnvironmentVariable("MAIL_MAILDIR", settings.value("mail/maildir").toString()));
 
     QDir templatePath(maildir.absoluteFilePath(QStringLiteral("%1/%2").arg(locale, templateName)));
