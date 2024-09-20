@@ -2,3 +2,6 @@
 	path = SMTPEmail
 	url = https://github.com/vicr123/vicr123-accounts.git
 	branch = smtpclient
+[submodule "QJsonWebToken"]
+	path = QJsonWebToken
+	url = https://github.com/juangburgos/QJsonWebToken.git
