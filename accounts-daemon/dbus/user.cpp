@@ -24,17 +24,17 @@
 #include "utils.h"
 #include "validation.h"
 #include <QDateTime>
-#include <QSqlError>
 #include <QSqlQuery>
 
 struct UserPrivate {
-    UserAccount* parent;
-    QString username;
-    QString email;
-    bool verified;
+        UserAccount* parent;
+        QString username;
+        QString email;
+        bool verified;
 };
 
-User::User(UserAccount* parent) : QDBusAbstractAdaptor(parent) {
+User::User(UserAccount* parent) :
+    QDBusAbstractAdaptor(parent) {
     d = new UserPrivate();
     d->parent = parent;
 
@@ -189,7 +189,7 @@ bool User::VerifyPassword(QString password, const QDBusMessage& message) {
     userQuery.exec();
     userQuery.next();
 
-    //Ensure the password is correct
+    // Ensure the password is correct
     QString passwordHash = userQuery.value("password").toString();
     if (passwordHash.startsWith("!")) {
         Utils::sendDbusError(Utils::DisabledAccount, message);
@@ -253,9 +253,10 @@ Utils::DBusError User::setPassword(QString password) {
     }
 
     if (d->verified) {
-        Utils::sendTemplateEmail("passwordchange", {d->email}, this->locale(), {
-              {"user", d->username}
-          });
+        Utils::sendTemplateEmail("passwordchange", {
+                                                       d->email
+        },
+            this->locale(), {{"user", d->username}});
     }
     return Utils::NoError;
 }
