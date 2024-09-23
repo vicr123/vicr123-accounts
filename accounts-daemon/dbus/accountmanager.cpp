@@ -176,18 +176,37 @@ QString AccountManager::ForceProvisionToken(quint64 userId, QString application,
 }
 
 QDBusObjectPath AccountManager::UserForToken(QString token, const QDBusMessage& message) {
-    QSqlQuery query;
-    query.prepare("SELECT * FROM tokens WHERE token=:token");
-    query.bindValue(":token", token);
-    query.exec();
-
-    if (!query.next()) {
+    quint64 tokenUser;
+    TokenProvisioningManager::TokenProvisioningPurpose tokenPurpose;
+    auto ok = d->tokenProvisioningManager->verifyToken(token, &tokenUser, &tokenPurpose);
+    if (!ok) {
         Utils::sendDbusError(Utils::NoAccount, message);
         return QDBusObjectPath("/");
     }
 
-    quint64 id = query.value("userid").toULongLong();
-    return UserById(id, message);
+    if (tokenPurpose != TokenProvisioningManager::TokenProvisioningPurpose::LoginToken) {
+        Utils::sendDbusError(Utils::NoAccount, message);
+        return QDBusObjectPath("/");
+    }
+
+    return UserById(tokenUser, message);
+}
+
+QDBusObjectPath AccountManager::UserForTokenWithPurpose(QString token, QString expectedTokenPurpose, const QDBusMessage& message) {
+    quint64 tokenUser;
+    TokenProvisioningManager::TokenProvisioningPurpose tokenPurpose;
+    auto ok = d->tokenProvisioningManager->verifyToken(token, &tokenUser, &tokenPurpose);
+    if (!ok) {
+        Utils::sendDbusError(Utils::NoAccount, message);
+        return QDBusObjectPath("/");
+    }
+
+    if (tokenPurpose != d->tokenProvisioningManager->purposeForString(expectedTokenPurpose)) {
+        Utils::sendDbusError(Utils::NoAccount, message);
+        return QDBusObjectPath("/");
+    }
+
+    return UserById(tokenUser, message);
 }
 
 QList<quint64> AccountManager::AllUsers(const QDBusMessage& message) {
@@ -229,13 +248,36 @@ QStringList AccountManager::TokenProvisioningMethods(QString username, QString a
     return d->tokenProvisioningManager->availableMethods(id, application, TokenProvisioningManager::TokenProvisioningPurpose::LoginToken);
 }
 
+QStringList AccountManager::TokenProvisioningMethodsWithPurpose(QString username, QString purpose, QString application, const QDBusMessage& message) {
+    const quint64 id = userIdByUsername(username);
+    if (id == 0) {
+        Utils::sendDbusError(Utils::NoAccount, message);
+        return {};
+    }
+
+    QSqlQuery userQuery;
+    userQuery.prepare("SELECT * FROM users WHERE id=:id");
+    userQuery.bindValue(":id", id);
+    userQuery.exec();
+    userQuery.next();
+
+    // Ensure the account is not disabled
+    QString passwordHash = userQuery.value("password").toString();
+    if (passwordHash.startsWith("!")) {
+        Utils::sendDbusError(Utils::DisabledAccount, message);
+        return {};
+    }
+
+    return d->tokenProvisioningManager->availableMethods(id, application, d->tokenProvisioningManager->purposeForString(purpose));
+}
+
 QVariantMap AccountManager::ProvisionTokenByMethod(QString method, QString username, QString application, QVariantMap extraOptions, const QDBusMessage& message) {
     QVariantMap options;
     options.insert("username", username);
     options.insert("application", application);
     options.insert(extraOptions);
 
-    auto [result, error] = d->tokenProvisioningManager->provision(method, TokenProvisioningManager::TokenProvisioningPurpose::LoginToken, application, options);
+    auto [result, error] = d->tokenProvisioningManager->provision(method, d->tokenProvisioningManager->purposeForString(extraOptions.value("purpose", "login").toString()), application, options);
     if (error != Utils::DBusError::NoError) {
         Utils::sendDbusError(error, message);
         return {};

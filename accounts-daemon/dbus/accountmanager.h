@@ -42,8 +42,10 @@ class AccountManager : public QObject {
         Q_SCRIPTABLE QString ProvisionToken(QString username, QString password, QString application, QVariantMap extraOptions, const QDBusMessage& message);
         Q_SCRIPTABLE QString ForceProvisionToken(quint64 userId, QString application, const QDBusMessage& message);
         Q_SCRIPTABLE QStringList TokenProvisioningMethods(QString username, QString application, const QDBusMessage& message);
+        Q_SCRIPTABLE QStringList TokenProvisioningMethodsWithPurpose(QString username, QString purpose, QString application, const QDBusMessage& message);
         Q_SCRIPTABLE QVariantMap ProvisionTokenByMethod(QString method, QString username, QString application, QVariantMap extraOptions, const QDBusMessage& message);
         Q_SCRIPTABLE QDBusObjectPath UserForToken(QString token, const QDBusMessage& message);
+        Q_SCRIPTABLE QDBusObjectPath UserForTokenWithPurpose(QString token, QString expectedTokenPurpose, const QDBusMessage& message);
         Q_SCRIPTABLE QList<quint64> AllUsers(const QDBusMessage& message);
         Q_SCRIPTABLE QDBusObjectPath CreateMailMessage(const QString& to, const QDBusMessage& message);
 

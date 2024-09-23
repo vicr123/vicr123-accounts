@@ -21,14 +21,17 @@ class TokenProvisioningManager : public QObject {
 
         enum class TokenProvisioningPurpose {
             LoginToken,
-            AccountModificationToken
+            AccountModificationToken,
+            Unknown = 0xFFFF
         };
 
         explicit TokenProvisioningManager(AccountManager* parent = nullptr);
         ~TokenProvisioningManager() override;
 
-        [[nodiscard]] ProvisionResult provision(QString method, TokenProvisioningManager::TokenProvisioningPurpose provisioningPurpose, QString application, QVariantMap options) const;
-        [[nodiscard]] QStringList availableMethods(quint64 userId, QString application, TokenProvisioningManager::TokenProvisioningPurpose provisioningPurpose) const;
+        TokenProvisioningPurpose purposeForString(QString purpose);
+        [[nodiscard]] ProvisionResult provision(QString method, TokenProvisioningPurpose provisioningPurpose, QString application, QVariantMap options) const;
+        [[nodiscard]] QStringList availableMethods(quint64 userId, QString application, TokenProvisioningPurpose provisioningPurpose) const;
+        bool verifyToken(QString token, quint64* userId, TokenProvisioningPurpose* provisioningPurpose) const;
 
     private:
         TokenProvisioningManagerPrivate* d;

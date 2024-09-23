@@ -6,10 +6,10 @@ set(CMAKE_AUTORCC ON)
 
 project(vicr123-accounts VERSION 1.0.0 LANGUAGES CXX)
 
-IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     link_directories(/usr/local/lib)
-ENDIF()
+ENDIF ()
 
 add_subdirectory(SMTPEmail)
-add_subdirectory(QJsonWebToken)
+include(qjsonwebtoken.cmake)
 add_subdirectory(accounts-daemon)
