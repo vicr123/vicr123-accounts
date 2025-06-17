@@ -55,6 +55,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ env.REGISTRY_IMAGE }}
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+          provenance: false
+          sbom: false
 
       - name: Export digest
         run: |
