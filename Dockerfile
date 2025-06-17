@@ -1,25 +1,26 @@
-FROM fedora:40 AS fido
-RUN dnf install dotnet-sdk-8.0 git -y
-RUN git clone https://github.com/vicr123/vicr123-accounts.git
-WORKDIR /vicr123-accounts
-RUN git checkout fido-support
+FROM alpine:3.21 AS fido-build
+RUN apk add --no-cache dotnet8-sdk
+COPY vicr123-accounts-fido /usr/src/vicr123-accounts-fido
+WORKDIR /usr/src/vicr123-accounts-fido
 RUN dotnet restore "vicr123-accounts-fido.csproj"
-RUN dotnet build "vicr123-accounts-fido.csproj" -c Release -o /app/fido/build
 RUN dotnet publish "vicr123-accounts-fido.csproj" -c Release -o /app/fido/publish
 
-FROM fedora:40 AS final
+FROM alpine:3.21 AS cpp-build
+RUN apk add --no-cache qt6-qtbase-dev cmake gcc g++ make ninja
 
-RUN dnf install qt6-qtbase-devel qt6-qtbase-postgresql dbus-daemon dotnet-runtime-8.0 -y
 COPY . /usr/src/vicr123-accounts
-WORKDIR /usr/src/vicr123-accounts
-RUN mkdir build
 WORKDIR /usr/src/vicr123-accounts/build
-RUN cmake ..
+RUN cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
 RUN cmake --build .
-RUN cmake --install .
+RUN DESTDIR=/app/cpp cmake --install .
 
-RUN dnf clean all
+# Final runtime stage
+FROM alpine:3.21 AS final
+RUN apk add --no-cache qt6-qtbase qt6-qtbase-postgresql dbus dotnet8-runtime
+
+# Copy built artifacts from build stages
+COPY --from=cpp-build /app/cpp /
+COPY --from=fido-build /app/fido/publish /app/fido
 
 WORKDIR /app/fido
-COPY --from=fido /app/fido/publish .
 CMD ["vicr123-accounts"]
