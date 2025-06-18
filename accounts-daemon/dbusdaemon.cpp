@@ -29,14 +29,20 @@ struct DBusDaemonPrivate {
     QProcess* daemonProcess;
 };
 
-DBusDaemon::DBusDaemon(QString configurationFile, QObject* parent) : QObject(parent) {
+DBusDaemon::DBusDaemon(QString configurationFile, QString address, QObject* parent) : QObject(parent) {
     d = new DBusDaemonPrivate();
     d->daemonProcess = new QProcess();
     d->daemonProcess->setProcessChannelMode(QProcess::ForwardedChannels);
     d->daemonProcess->setChildProcessModifier([] {
         prctl(PR_SET_PDEATHSIG, SIGTERM);
     });
-    d->daemonProcess->start("dbus-daemon", {"--nofork", QStringLiteral("--config-file=%1").arg(configurationFile)});
+    
+    QStringList arguments = {"--nofork", QStringLiteral("--config-file=%1").arg(configurationFile)};
+    if (!address.isEmpty()) {
+        arguments.append(QStringLiteral("--address=%1").arg(address));
+    }
+    
+    d->daemonProcess->start("dbus-daemon", arguments);
     d->daemonProcess->waitForStarted();
 
     //HACK: Race condition!!!

@@ -26,7 +26,7 @@ struct DBusDaemonPrivate;
 class DBusDaemon : public QObject {
         Q_OBJECT
     public:
-        explicit DBusDaemon(QString configurationFile, QObject* parent = nullptr);
+        explicit DBusDaemon(QString configurationFile, QString address = QString(), QObject* parent = nullptr);
         ~DBusDaemon();
 
     signals:

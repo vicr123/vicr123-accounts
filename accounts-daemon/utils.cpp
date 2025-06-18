@@ -32,7 +32,8 @@
 
 QDBusConnection Utils::accountsBus() {
     QSettings settings(Utils::settingsFile(), QSettings::IniFormat);
-    if (settings.value("dbus/bus").toString() == "dedicated") {
+    QString dbusAddress = qEnvironmentVariable("DBUS_VICR123_ACCOUNTS_BUS_ADDRESS", settings.value("dbus/busaddress").toString());
+    if (dbusAddress != "session") {
         return QDBusConnection("accounts");
     } else {
         return QDBusConnection::sessionBus();

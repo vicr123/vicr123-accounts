@@ -39,13 +39,16 @@ int main(int argc, char* argv[]) {
     }
 
     QSettings settings(Utils::settingsFile(), QSettings::IniFormat);
-    if (settings.value("dbus/bus").toString() == "dedicated") {
-        new DBusDaemon(qEnvironmentVariable("DBUS_CONFIGURATION_FILE", settings.value("dbus/configuration").toString()));
-        QDBusConnection::connectToBus("unix:path=/var/vicr123-accounts/vicr123-accounts-bus", "accounts");
+    QString dbusAddress = qEnvironmentVariable("DBUS_VICR123_ACCOUNTS_BUS_ADDRESS", settings.value("dbus/busaddress").toString());
+    if (dbusAddress != "session") {
+        QString configFile = qEnvironmentVariable("DBUS_CONFIGURATION_FILE", settings.value("dbus/configuration").toString());
+        new DBusDaemon(configFile, dbusAddress);
+        QDBusConnection::connectToBus(dbusAddress, "accounts");
     }
 
     if (!Utils::accountsBus().registerService("com.vicr123.accounts")) {
         Logger::error() << "Could not register service on bus";
+        return 1;
     }
 
     AccountManager* accountManager = new AccountManager();
