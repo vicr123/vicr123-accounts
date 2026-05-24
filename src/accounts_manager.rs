@@ -1,6 +1,8 @@
 use crate::account::Account;
 use crate::error::Error;
-use crate::token_provisioning::{TokenProvisioningManager, TokenProvisioningPurpose};
+use crate::token_provisioning::{
+    TokenProvisioningManager, TokenProvisioningPurpose, VerifiedToken,
+};
 use crate::validation::{validate_email_address, validate_password, validate_username};
 use crate::{VariantMap, generate_hashed_password, generate_salt, send_verification_email};
 use base64::Engine;
@@ -8,6 +10,7 @@ use base64::prelude::BASE64_STANDARD;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
 use std::sync::Arc;
+use zbus::export::ordered_stream::OrderedStreamExt;
 use zbus::zvariant::ObjectPath;
 use zbus::{Connection, interface};
 use zvariant::{Str, Value};
@@ -164,7 +167,97 @@ impl AccountsManager {
         Ok(new_token)
     }
 
-    async fn all_users(&self) -> String {
-        "Hello".to_string()
+    async fn user_for_token(&self, token: &str) -> Result<ObjectPath, Error> {
+        self.user_for_token_with_purpose(token, "login").await
+    }
+
+    async fn user_for_token_with_purpose(
+        &self,
+        token: &str,
+        expected_token_purpose: &str,
+    ) -> Result<ObjectPath, Error> {
+        match self.token_provisioning_manager.verify_token(token).await? {
+            None => Err(Error::NoAccount),
+            Some(verified_token) => {
+                if verified_token.purpose != expected_token_purpose.into() {
+                    Err(Error::NoAccount)
+                } else {
+                    self.user_by_id(verified_token.user_id as u64).await
+                }
+            }
+        }
+    }
+
+    async fn all_users(&self) -> Result<Vec<u64>, Error> {
+        Ok(sqlx::query("SELECT * FROM users")
+            .fetch_all(&self.database)
+            .await?
+            .iter()
+            .filter_map(|row| row.try_get::<i32, _>("id").ok())
+            .map(|id| id as u64)
+            .collect())
+    }
+
+    async fn token_provisioning_methods(
+        &self,
+        username: &str,
+        application: &str,
+    ) -> Result<Vec<&'static str>, Error> {
+        self.token_provisioning_methods_with_purpose(username, "login", application)
+            .await
+    }
+
+    async fn token_provisioning_methods_with_purpose(
+        &self,
+        username: &str,
+        purpose: &str,
+        application: &str,
+    ) -> Result<Vec<&'static str>, Error> {
+        let id = user_id_by_username(&self.database, username).await?;
+
+        // Ensure the account is not disabled
+        let password_hash = sqlx::query("SELECT * FROM users WHERE id=$1")
+            .bind(id)
+            .fetch_one(&self.database)
+            .await?
+            .try_get::<String, _>("password")?;
+        if password_hash.starts_with("!") {
+            Err(Error::DisabledAccount)
+        } else {
+            Ok(self
+                .token_provisioning_manager
+                .available_methods(id, application, purpose))
+        }
+    }
+
+    async fn provision_token_by_method(
+        &self,
+        method: &str,
+        username: &str,
+        application: &str,
+        extra_options: VariantMap<'_>,
+    ) -> Result<VariantMap, Error> {
+        let purpose = extra_options
+            .get("purpose")
+            .and_then(|purpose| match purpose {
+                Value::Str(s) => Some(s.to_string()),
+                _ => None,
+            })
+            .map(|purpose| purpose.into())
+            .unwrap_or(TokenProvisioningPurpose::Login);
+
+        let mut options = VariantMap::new();
+        options.insert("username".into(), Value::Str(Str::from(username)));
+        options.insert("application".into(), Value::Str(Str::from(application)));
+        options.extend(extra_options);
+
+        self.token_provisioning_manager
+            .provision(method, purpose, application, options)
+            .await
+    }
+
+    async fn create_mail_message(&self, to: &str) -> Result<ObjectPath, Error> {
+        // TODO
+        Ok(ObjectPath::default())
     }
 }
