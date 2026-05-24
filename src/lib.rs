@@ -1,14 +1,19 @@
+use std::collections::HashMap;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use rand::distr::{Alphanumeric, SampleString};
 use rand::RngExt;
 use sha3::Sha3_512;
 use sqlx::PgPool;
+use zvariant::Value;
 
 pub mod accounts_manager;
 pub mod error;
 pub mod validation;
 pub mod account;
+pub mod token_provisioning;
+
+pub type VariantMap<'a> = HashMap<String, Value<'a>>;
 
 pub fn generate_hashed_password(password: &str, iterations: u32) -> String {
     let salt = generate_salt();
@@ -58,6 +63,11 @@ pub fn generate_salt() -> Box<[u8; 64]> {
 }
 
 pub fn send_verification_email(pool: PgPool, user_id: i32) -> bool {
+    // TODO
+    true
+}
+
+pub fn is_valid_otp_key(otp_key: &str, otp_secret: &str) -> bool {
     // TODO
     true
 }

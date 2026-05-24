@@ -6,6 +6,7 @@ use zbus::{DBusError, Message};
 #[derive(Debug)]
 pub enum Error {
     NoAccount,
+    InternalError,
     QueryError(sqlx::Error),
     IncorrectPassword,
     PasswordResetRequired,
@@ -39,6 +40,7 @@ impl DBusError for Error {
     fn name(&self) -> ErrorName<'_> {
         ErrorName::from_static_str(match self {
             Error::NoAccount => "com.vicr123.accounts.Error.NoAccount",
+            Error::InternalError => "com.vicr123.accounts.Error.InternalError",
             Error::QueryError(_) => "com.vicr123.accounts.Error.QueryError",
             Error::IncorrectPassword => "com.vicr123.accounts.Error.IncorrectPassword",
             Error::PasswordResetRequired => "com.vicr123.accounts.Error.PasswordResetRequired",
@@ -59,6 +61,7 @@ impl DBusError for Error {
     fn description(&self) -> Option<&str> {
         Some(match self {
             Error::NoAccount => "The user account does not exist",
+            Error::InternalError => "Internal Error",
             Error::QueryError(_) => "Could not execute the query on the database",
             Error::IncorrectPassword => "The password is incorrect",
             Error::PasswordResetRequired => "A password reset is required",
