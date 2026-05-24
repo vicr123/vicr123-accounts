@@ -12,6 +12,7 @@ pub mod error;
 pub mod validation;
 pub mod account;
 pub mod token_provisioning;
+mod bus;
 
 pub type VariantMap<'a> = HashMap<String, Value<'a>>;
 

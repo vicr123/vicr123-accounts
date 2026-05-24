@@ -1,4 +1,5 @@
 use crate::account::Account;
+use crate::bus::user_object;
 use crate::error::Error;
 use crate::token_provisioning::{
     TokenProvisioningManager, TokenProvisioningPurpose, VerifiedToken,
@@ -36,38 +37,13 @@ pub async fn user_id_by_username(database: &PgPool, username: &str) -> Result<i3
 
 impl AccountsManager {
     pub fn new(database: PgPool, bus: Connection) -> Self {
-        let token_provisioning_manager = Arc::new(TokenProvisioningManager::new(database.clone()));
+        let token_provisioning_manager =
+            Arc::new(TokenProvisioningManager::new(bus.clone(), database.clone()));
         Self {
             database,
             bus,
             token_provisioning_manager,
         }
-    }
-
-    async fn user_object(&self, id: i32) -> Result<ObjectPath, Error> {
-        let path = ObjectPath::try_from(format!("/com/vicr123/accounts/User{id}")).unwrap();
-
-        // Ensure the user account exists
-        let count = sqlx::query("SELECT COUNT(*) FROM users WHERE id=$1")
-            .bind(id)
-            .fetch_one(&self.database)
-            .await?
-            .try_get::<i64, _>(0)?;
-        if count == 0 {
-            return Err(Error::NoAccount);
-        }
-
-        if self
-            .bus
-            .object_server()
-            .interface::<_, Account>(&path)
-            .await
-            .is_err()
-        {
-            let account = Account::new(id, self.database.clone());
-            let _ = self.bus.object_server().at(&path, account).await;
-        }
-        Ok(path)
     }
 }
 
@@ -109,11 +85,19 @@ impl AccountsManager {
 
         send_verification_email(self.database.clone(), new_user_id);
 
-        self.user_object(new_user_id).await
+        let path = user_object(&self.bus, &self.database, new_user_id, async |account| {
+            account.path()
+        })
+        .await?;
+        Ok(path)
     }
 
     async fn user_by_id(&self, id: u64) -> Result<ObjectPath, Error> {
-        self.user_object(id as i32).await
+        let path = user_object(&self.bus, &self.database, id as i32, async |account| {
+            account.path()
+        })
+        .await?;
+        Ok(path)
     }
 
     async fn provision_token(
@@ -154,7 +138,7 @@ impl AccountsManager {
         }
 
         let user_id = user_id as i32;
-        self.user_object(user_id).await?;
+        user_object(&self.bus, &self.database, user_id, async |_| {}).await?;
 
         let new_token = BASE64_STANDARD.encode(*generate_salt());
 

@@ -3,11 +3,13 @@ use crate::accounts_manager::user_id_by_username;
 use crate::error::Error;
 use crate::token_provisioning::{ProvisionResult, TokenProvisioningPurpose};
 use crate::{VariantMap, is_valid_otp_key, verify_hashed_password};
-use sqlx::postgres::PgRow;
 use sqlx::{PgPool, Row};
+use zbus::Connection;
 use zvariant::Value;
+use crate::bus::user_object;
 
 pub async fn provision(
+    bus: &Connection,
     database: &PgPool,
     options: VariantMap<'_>,
     purpose: TokenProvisioningPurpose,
@@ -37,8 +39,6 @@ pub async fn provision(
         return Err(Error::DisabledAccount);
     }
 
-    let account = Account::new(id, database.clone());
-
     // Now check for password resets
     let have_password_reset = {
         let mut have_password_reset = false;
@@ -64,7 +64,10 @@ pub async fn provision(
                     return Err(Error::PasswordResetRequired);
                 };
 
-                account.set_password(&new_password).await?;
+                user_object(bus, database, id, async |account| -> Result<(), Error> {
+                    account.set_password(&new_password).await?;
+                    Ok(())
+                }).await??;
 
                 // The password has been reset, so delete all the password resets for this user
                 let _ = sqlx::query("DELETE FROM passwordresets WHERE userid = $1")
@@ -133,7 +136,7 @@ pub async fn provision(
                         }) else {
                             return Err(Error::TwoFactorRequired)
                         };
-                        
+
                         // Mark the valid backup key as used
                         sqlx::query("UPDATE optbackup SET used = true WHERE backupkey = $1 AND userid = $2")
                             .bind(valid_backup_key)

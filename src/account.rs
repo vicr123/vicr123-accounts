@@ -1,5 +1,6 @@
 use sqlx::PgPool;
 use zbus::interface;
+use zvariant::{ObjectPath, OwnedObjectPath};
 use crate::error::Error;
 use crate::generate_hashed_password;
 use crate::validation::validate_password;
@@ -7,11 +8,16 @@ use crate::validation::validate_password;
 pub struct Account {
     id: i32,
     database: PgPool,
+    path: String
 }
 
 impl Account {
-    pub fn new(id: i32, database: PgPool) -> Self {
-        Self { id, database }
+    pub fn new(id: i32, database: PgPool, path: String) -> Self {
+        Self { id, database, path }
+    }
+    
+    pub fn path(&self) -> ObjectPath<'static> {
+        ObjectPath::try_from(self.path.clone()).unwrap()
     }
 }
 

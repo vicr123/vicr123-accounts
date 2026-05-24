@@ -4,11 +4,13 @@ use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use sqlx::postgres::PgRow;
 use sqlx::{PgPool, Row};
+use zbus::Connection;
 use zvariant::Str;
 
 pub mod password_provisioning_method;
 
 pub struct TokenProvisioningManager {
+    bus: Connection,
     database: PgPool,
 }
 
@@ -45,8 +47,8 @@ impl From<String> for TokenProvisioningPurpose {
 }
 
 impl TokenProvisioningManager {
-    pub fn new(database: PgPool) -> Self {
-        TokenProvisioningManager { database }
+    pub fn new(bus: Connection, database: PgPool) -> Self {
+        TokenProvisioningManager { bus, database }
     }
 
     pub async fn provision(
@@ -63,7 +65,7 @@ impl TokenProvisioningManager {
 
         let result = match method_name {
             "password" => {
-                password_provisioning_method::provision(&self.database, options.clone(), purpose)
+                password_provisioning_method::provision(&self.bus, &self.database, options.clone(), purpose)
                     .await?
             }
             _ => return Err(Error::InternalError),
