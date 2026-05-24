@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let bus = zbus::connection::Builder::session()?.build().await?;
 
-    let manager = AccountsManager::new(database);
+    let manager = AccountsManager::new(database, bus.clone());
     bus.object_server()
         .at("/com/vicr123/accounts", manager)
         .await?;
