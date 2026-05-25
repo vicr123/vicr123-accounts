@@ -109,6 +109,14 @@ fn calculate_otp_key(shared_key: &str, offset: u64) -> String {
     format!("{:06}", number % 1000000)
 }
 
+pub fn generate_shared_otp_key() -> String {
+    let valid_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    let mut rng = rand::rng();
+    (0..32)
+        .map(|_| valid_chars.chars().nth(rng.random_range(0..valid_chars.len())).unwrap())
+        .collect()
+}
+
 #[test]
 fn test_passwords() {
     for i in 0..10 {

@@ -136,7 +136,6 @@ impl TokenProvisioningManager {
     }
 
     pub async fn verify_token(&self, token: &str) -> Result<Option<VerifiedToken>, Error> {
-        // TODO: First try to understand the token as a JWT
         if let Ok(claims) = self.jwt_key.verify_token::<AccountModificationTokenClaims>(token, None) {
             let Some(subject) = claims.subject else {
                 return Ok(None);

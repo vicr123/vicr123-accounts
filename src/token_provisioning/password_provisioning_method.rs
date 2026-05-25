@@ -1,4 +1,3 @@
-use crate::account::Account;
 use crate::accounts_manager::user_id_by_username;
 use crate::error::Error;
 use crate::token_provisioning::{ProvisionResult, TokenProvisioningPurpose};
