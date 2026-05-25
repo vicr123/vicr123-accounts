@@ -1926,9 +1926,11 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "chrono",
+ "hmac",
  "pbkdf2",
  "rand",
  "regex",
+ "sha1",
  "sha3",
  "sqlx",
  "tokio",

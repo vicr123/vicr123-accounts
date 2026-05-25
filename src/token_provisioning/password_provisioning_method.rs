@@ -118,7 +118,7 @@ pub async fn provision(
                     let otp_secret = row.try_get::<String, _>("otpkey")?;
                     if !is_valid_otp_key(&otp_token, &otp_secret) {
                         // Check the backup keys
-                        let backup_keys = sqlx::query("SELECT * FROM optbackup WHERE userid = $1")
+                        let backup_keys = sqlx::query("SELECT * FROM otpbackup WHERE userid = $1")
                             .bind(id)
                             .fetch_all(database)
                             .await?;
@@ -138,7 +138,7 @@ pub async fn provision(
                         };
 
                         // Mark the valid backup key as used
-                        sqlx::query("UPDATE optbackup SET used = true WHERE backupkey = $1 AND userid = $2")
+                        sqlx::query("UPDATE otpbackup SET used = true WHERE backupkey = $1 AND userid = $2")
                             .bind(valid_backup_key)
                             .bind(id)
                             .execute(database)
