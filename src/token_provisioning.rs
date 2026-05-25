@@ -1,17 +1,24 @@
 use crate::error::Error;
-use crate::{VariantMap, generate_salt};
-use base64::Engine;
+use crate::{generate_salt, VariantMap};
 use base64::prelude::BASE64_STANDARD;
-use sqlx::postgres::PgRow;
+use base64::Engine;
+use hmac::KeyInit;
+use jwt_simple::algorithms::{HS256Key, MACLike};
+use jwt_simple::claims::{Claims, NoCustomClaims};
+use jwt_simple::prelude::Duration;
+use rand::distr::SampleString;
+use rand::RngExt;
+use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
 use zbus::Connection;
-use zvariant::Str;
 
 pub mod password_provisioning_method;
 
 pub struct TokenProvisioningManager {
     bus: Connection,
     database: PgPool,
+
+    jwt_key: HS256Key
 }
 
 pub enum ProvisionResult<'a> {
@@ -19,7 +26,7 @@ pub enum ProvisionResult<'a> {
     Challenge(VariantMap<'a>),
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum TokenProvisioningPurpose {
     Login,
     AccountModification,
@@ -46,9 +53,20 @@ impl From<String> for TokenProvisioningPurpose {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct AccountModificationTokenClaims {
+    purpose: TokenProvisioningPurpose,
+}
+
 impl TokenProvisioningManager {
     pub fn new(bus: Connection, database: PgPool) -> Self {
-        TokenProvisioningManager { bus, database }
+        let jwt_key = HS256Key::generate();
+
+        TokenProvisioningManager {
+            bus,
+            database,
+            jwt_key,
+        }
     }
 
     pub async fn provision(
@@ -65,11 +83,17 @@ impl TokenProvisioningManager {
 
         let result = match method_name {
             "password" => {
-                password_provisioning_method::provision(&self.bus, &self.database, options.clone(), purpose)
-                    .await?
+                password_provisioning_method::provision(
+                    &self.bus,
+                    &self.database,
+                    options.clone(),
+                    purpose,
+                )
+                .await?
             }
             _ => return Err(Error::InternalError),
         };
+
         match result {
             ProvisionResult::Success(user_id) => {
                 match purpose {
@@ -87,10 +111,18 @@ impl TokenProvisioningManager {
 
                         let mut map = VariantMap::new();
                         map.insert("token".into(), new_token.into());
-                        return Ok(map);
+                        Ok(map)
                     }
                     TokenProvisioningPurpose::AccountModification => {
-                        // TODO
+                        // Create a short-lived JWT that we can use to perform account modification actions
+                        let claims = Claims::with_custom_claims(AccountModificationTokenClaims {
+                            purpose,
+                        }, Duration::from_hours(1)).with_subject(user_id);
+                        let token = self.jwt_key.authenticate(claims).unwrap();
+
+                        let mut map = VariantMap::new();
+                        map.insert("token".into(), token.into());
+                        Ok(map)
                     }
                     TokenProvisioningPurpose::Unknown => {
                         unreachable!()
@@ -98,15 +130,27 @@ impl TokenProvisioningManager {
                 }
             }
             ProvisionResult::Challenge(challenge) => {
-                return Ok(challenge);
+                Ok(challenge)
             }
         }
-
-        Err(Error::InternalError)
     }
 
     pub async fn verify_token(&self, token: &str) -> Result<Option<VerifiedToken>, Error> {
         // TODO: First try to understand the token as a JWT
+        if let Ok(claims) = self.jwt_key.verify_token::<AccountModificationTokenClaims>(token, None) {
+            let Some(subject) = claims.subject else {
+                return Ok(None);
+            };
+
+            let Ok(subject) = subject.parse::<i32>() else {
+                return Ok(None);
+            };
+
+            return Ok(Some(VerifiedToken {
+                user_id: subject,
+                purpose: claims.custom.purpose,
+            }))
+        }
 
         // Now read the database for tokens
         match sqlx::query("SELECT * FROM tokens WHERE token=$1")
