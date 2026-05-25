@@ -27,7 +27,7 @@ pub async fn user_object<TReturn>(
         return Ok(callback(account.get().await).await);
     }
 
-    let account = Account::new(id, database.clone(), path.to_string());
+    let account = Account::new(id, database.clone(), path.to_string()).await?;
     bus.object_server()
         .at(&path, account)
         .await
