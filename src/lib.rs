@@ -18,14 +18,12 @@ pub type VariantMap<'a> = HashMap<String, Value<'a>>;
 
 pub fn generate_hashed_password(password: &str, iterations: u32) -> String {
     let salt = generate_salt();
-    let salt = BASE64_STANDARD.encode(*salt);
 
     let password = password.as_bytes();
-    let salt_bytes = salt.as_bytes();
 
-    let mut key = [0u8; 20];
-    pbkdf2::pbkdf2_hmac::<Sha3_512>(password, salt_bytes, iterations, &mut key);
+    let key = pbkdf2::pbkdf2_hmac_array::<Sha3_512, 512>(password, salt.as_slice(), iterations);
     let key = BASE64_STANDARD.encode(key);
+    let salt = BASE64_STANDARD.encode(*salt);
     format!("PBKDF2.SHA3_512.{iterations}.{salt}.{key}")
 }
 
@@ -43,14 +41,15 @@ pub fn verify_hashed_password(password: &str, hashed_password: &str) -> bool {
     let Ok(iterations) = parts[2].parse::<u32>() else {
         return false;
     };
-    let salt = parts[3].as_bytes();
+    let Ok(salt) = BASE64_STANDARD.decode(parts[3].as_bytes()) else {
+        return false;
+    };
     let Ok(stored_hash) = BASE64_STANDARD.decode(parts[4].as_bytes()) else {
         return false;
     };
 
     let password = password.as_bytes();
-    let mut key = [0u8; 20];
-    pbkdf2::pbkdf2_hmac::<Sha3_512>(password, salt, iterations, &mut key);
+    let key = pbkdf2::pbkdf2_hmac_array::<Sha3_512, 512>(password, &salt, iterations);
 
     if key != *stored_hash {
         return false;
