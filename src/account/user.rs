@@ -126,7 +126,6 @@ impl User {
             .await?;
 
         if self.verified().await {
-            // TODO: Send password change email
             let _ = send_template_email(
                 "passwordchange",
                 self.email.clone(),

@@ -54,7 +54,7 @@ pub async fn provision(
             if verify_hashed_password(&password, &temporary_password) {
                 let Some(new_password) =
                     options
-                        .get("new_password")
+                        .get("newPassword")
                         .and_then(|new_password| match new_password {
                             Value::Str(s) => Some(s.to_string()),
                             _ => None,
