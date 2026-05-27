@@ -1,4 +1,4 @@
-use crate::bus::user_object;
+use crate::bus::{create_mail_message, user_object};
 use crate::error::Error;
 use crate::token_provisioning::{
     TokenProvisioningManager, TokenProvisioningPurpose, VerifiedToken,
@@ -10,6 +10,7 @@ use base64::prelude::BASE64_STANDARD;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use zbus::export::ordered_stream::OrderedStreamExt;
 use zbus::zvariant::ObjectPath;
 use zbus::{Connection, interface};
@@ -17,7 +18,6 @@ use zvariant::{Str, Value};
 
 pub struct AccountsManager {
     database: PgPool,
-    bus: Connection,
     token_provisioning_manager: Arc<TokenProvisioningManager>,
 }
 
@@ -38,9 +38,9 @@ impl AccountsManager {
     pub fn new(database: PgPool, bus: Connection) -> Self {
         let token_provisioning_manager =
             Arc::new(TokenProvisioningManager::new(bus.clone(), database.clone()));
+
         Self {
             database,
-            bus,
             token_provisioning_manager,
         }
     }
@@ -59,6 +59,7 @@ impl AccountsManager {
         username: &str,
         password: &str,
         email: &str,
+        #[zbus(connection)] connection: &Connection,
     ) -> Result<ObjectPath, Error> {
         if username.is_empty() || password.is_empty() || email.is_empty() {
             return Err(Error::InvalidInput);
@@ -84,15 +85,19 @@ impl AccountsManager {
 
         let _ = send_verification_email(&self.database, new_user_id).await;
 
-        let path = user_object(&self.bus, &self.database, new_user_id, async |account| {
+        let path = user_object(connection, &self.database, new_user_id, async |account| {
             account.path()
         })
         .await?;
         Ok(path)
     }
 
-    async fn user_by_id(&self, id: u64) -> Result<ObjectPath, Error> {
-        let path = user_object(&self.bus, &self.database, id as i32, async |account| {
+    async fn user_by_id(
+        &self,
+        id: u64,
+        #[zbus(connection)] connection: &Connection,
+    ) -> Result<ObjectPath, Error> {
+        let path = user_object(connection, &self.database, id as i32, async |account| {
             account.path()
         })
         .await?;
@@ -131,13 +136,14 @@ impl AccountsManager {
         &self,
         user_id: u64,
         application: &str,
+        #[zbus(connection)] connection: &Connection,
     ) -> Result<String, Error> {
         if application.is_empty() {
             return Err(Error::InvalidInput);
         }
 
         let user_id = user_id as i32;
-        user_object(&self.bus, &self.database, user_id, async |_| {}).await?;
+        user_object(connection, &self.database, user_id, async |_| {}).await?;
 
         let new_token = BASE64_STANDARD.encode(*generate_salt());
 
@@ -150,14 +156,15 @@ impl AccountsManager {
         Ok(new_token)
     }
 
-    async fn user_for_token(&self, token: &str) -> Result<ObjectPath, Error> {
-        self.user_for_token_with_purpose(token, "login").await
+    async fn user_for_token(&self, token: &str, #[zbus(connection)] connection: &Connection) -> Result<ObjectPath, Error> {
+        self.user_for_token_with_purpose(token, "login", connection).await
     }
 
     async fn user_for_token_with_purpose(
         &self,
         token: &str,
         expected_token_purpose: &str,
+        #[zbus(connection)] connection: &Connection,
     ) -> Result<ObjectPath, Error> {
         match self.token_provisioning_manager.verify_token(token).await? {
             None => Err(Error::NoAccount),
@@ -165,7 +172,8 @@ impl AccountsManager {
                 if verified_token.purpose != expected_token_purpose.into() {
                     Err(Error::NoAccount)
                 } else {
-                    self.user_by_id(verified_token.user_id as u64).await
+                    self.user_by_id(verified_token.user_id as u64, connection)
+                        .await
                 }
             }
         }
@@ -239,8 +247,11 @@ impl AccountsManager {
             .await
     }
 
-    async fn create_mail_message(&self, to: &str) -> Result<ObjectPath, Error> {
-        // TODO
-        Ok(ObjectPath::default())
+    async fn create_mail_message(
+        &self,
+        to: &str,
+        #[zbus(connection)] connection: &Connection,
+    ) -> Result<ObjectPath, Error> {
+        Ok(create_mail_message(connection, to).await)
     }
 }

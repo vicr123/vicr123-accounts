@@ -1,4 +1,4 @@
-use crate::bus::user_object;
+use crate::bus::{create_mail_message, user_object};
 use crate::error::Error;
 use crate::validation::{validate_email_address, validate_password, validate_username};
 use crate::{
@@ -6,8 +6,8 @@ use crate::{
 };
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
-use zbus::interface;
 use zbus::object_server::SignalEmitter;
+use zbus::{Connection, interface};
 use zvariant::{ObjectPath, OwnedObjectPath};
 
 pub struct User {
@@ -259,12 +259,14 @@ impl User {
         Ok(())
     }
 
-    pub async fn create_mail_message(&self) -> Result<ObjectPath<'_>, Error> {
+    pub async fn create_mail_message(
+        &self,
+        #[zbus(connection)] connection: &Connection,
+    ) -> Result<ObjectPath<'_>, Error> {
         if !self.verified {
             return Err(Error::AccountEmailNotVerified);
         }
 
-        // TODO
-        Ok(ObjectPath::default())
+        Ok(create_mail_message(connection, &self.email).await)
     }
 }

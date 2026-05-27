@@ -23,6 +23,7 @@ pub mod error;
 pub mod mail_template;
 pub mod token_provisioning;
 pub mod validation;
+mod mail_message;
 
 pub type VariantMap<'a> = HashMap<String, Value<'a>>;
 
@@ -201,7 +202,7 @@ pub async fn send_mail_message<'a>(message: impl IntoMessage<'a>) -> Result<(), 
     {
         client_builder = client_builder.credentials((username, password));
     }
-    
+
     let security_type = std::env::var("SMTP_SECURITY");
     let security_type = match &security_type {
         Ok(security) => Some(security.as_str()),
