@@ -1,0 +1,14 @@
+Hi {user}!
+
+Looks like you've switched off Two Factor Authentication for your Victor Tran account.
+
+From now on, when you log in, you'll only need your password.
+
+In order to switch Two Factor Authentication back on, go ahead and visit the Account screen in any Victor Tran application.
+
+If this wasn't you, reply to this email to let us know immediately, as your account might have been compromised.
+
+Best Regards,
+- Victor Tran
+
+P.S. This email not for you? Reply to this message and we'll sort it out. Thanks!

@@ -19,12 +19,18 @@ pub enum Error {
     PasswordResetRequestRequired,
     FidoSupportUnavailable,
     AccountEmailNotVerified,
-    EmailError,
+    EmailError(Option<mail_send::Error>),
 }
 
 impl From<sqlx::Error> for Error {
     fn from(err: sqlx::Error) -> Self {
         Error::QueryError(err)
+    }
+}
+
+impl From<mail_send::Error> for Error {
+    fn from(value: mail_send::Error) -> Self {
+        Error::EmailError(Some(value))
     }
 }
 
@@ -53,7 +59,7 @@ impl DBusError for Error {
             Error::PasswordResetRequestRequired => "com.vicr123.accounts.Error.PasswordResetRequestRequired",
             Error::FidoSupportUnavailable => "com.vicr123.accounts.Error.FidoSupportUnavailable",
             Error::AccountEmailNotVerified => "com.vicr123.accounts.Error.AccountEmailNotVerified",
-            Error::EmailError => "com.vicr123.accounts.Error.EmailError",
+            Error::EmailError(_) => "com.vicr123.accounts.Error.EmailError",
         })
         .unwrap()
     }
@@ -74,7 +80,7 @@ impl DBusError for Error {
             Error::PasswordResetRequestRequired => "A password reset must be requested",
             Error::FidoSupportUnavailable => "FIDO U2F support is not available",
             Error::AccountEmailNotVerified => "Account Email is not verified",
-            Error::EmailError => "Unable to send the email",
+            Error::EmailError(_) => "Unable to send the email",
         })
     }
 }

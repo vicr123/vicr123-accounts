@@ -1,0 +1,16 @@
+Hi {user}!
+
+Looks like you've regenerated your Two Factor Authentication backup codes.
+
+Your old backup codes have now stopped working, so the only valid backup codes now are the ones that were just generated.
+
+You can use these backup codes instead of a Two Factor Authentication code if you can't access your mobile device. Each code can only be used once, but you can regenerate them at any time.
+
+In order to manage Two Factor Authentication, or to regenerate your backup codes, go ahead and visit the Account screen in any Victor Tran application.
+
+If this wasn't you, reply to this email to let us know immediately, as your account might have been compromised.
+
+Best Regards,
+- Victor Tran
+
+P.S. This email not for you? Reply to this message and we'll sort it out. Thanks!

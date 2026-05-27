@@ -82,7 +82,7 @@ impl AccountsManager {
         .await?
         .try_get::<i32, _>("id")?;
 
-        send_verification_email(self.database.clone(), new_user_id);
+        let _ = send_verification_email(&self.database, new_user_id).await;
 
         let path = user_object(&self.bus, &self.database, new_user_id, async |account| {
             account.path()

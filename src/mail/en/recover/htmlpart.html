@@ -1,0 +1,103 @@
+<html>
+<head>
+    <style>
+        @font-face {
+            font-family: 'Contemporary';
+            font-style: normal;
+            font-weight: 400;
+            src: local('Contemporary'), local('Contemporary-Regular'), url('https://vicr123.com/typeface/Contemporary-Regular.ttf');
+        }
+
+        body {
+            font-family: "Contemporary";
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 12pt;
+        }
+
+        div.container {
+            border: 1px solid white;
+            background-color: rgb(40, 40, 40);
+            color: white;
+            max-width: 600px;
+        }
+
+        h1.header {
+            margin: 0px;
+            padding: 9px;
+            font-weight: normal;
+            font-size: 15pt;
+            border-bottom: 1px solid white;
+        }
+
+        div.content {
+            padding: 9px;
+        }
+
+        p {
+            margin: 0px;
+        }
+
+        footer {
+            padding-top: 9px;
+            font-size: 8pt;
+        }
+
+        div.logo {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            max-width: 600px;
+
+            margin-bottom: 12px;
+        }
+
+        div.logo p {
+            font-size: 48px;
+            margin-top: 0px;
+            margin-bottom: 0px;
+            margin-left: 9px;
+        }
+    </style>
+    <style>
+        div.code {
+            text-align: center;
+            font-size: 20pt;
+            padding-top: 9px;
+            padding-bottom: 9px;
+        }
+    </style>
+</head>
+<body>
+<div class="logo">
+    <img src="https://vicr123.com/img/logo.svg" height="64" />
+    <p>Victor Tran</p>
+</div>
+<div class="container">
+    <h1 class="header">
+        Reset your Victor Tran account password
+    </h1>
+    <div class="content">
+        <p>Hi {user}!</p>
+        <p>&nbsp;</p>
+        <p>We heard that you might have forgotten your password, so here's one you can use to log in with.</p>
+        <div class="code">
+            {password}
+        </div>
+        <p>After logging in with this passsword, you'll be asked to set a new one.</p>
+        <p>&nbsp;</p>
+        <p>Be speedy though, this password will expire in half an hour. You can request another password reset once that time has passed.</p>
+        <p>&nbsp;</p>
+        <p>If this wasn't you, don't worry; nothing's changed on your account so far. You can continue to log in with your old password. <b>Just make sure never to give this password to anyone, otherwise they'll be able to take over your account.</b></p>
+        <p>&nbsp;</p>
+        <p>Best Regards,</p>
+        <p>- Victor Tran</p>
+    </div>
+</div>
+<footer>
+    This email not for you? Reply to this message and we'll sort it out. Thanks!
+</footer>
+</body>
+</html>

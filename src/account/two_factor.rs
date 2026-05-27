@@ -1,12 +1,14 @@
 use crate::account::user::UserSignals;
+use crate::bus::user_object;
 use crate::error::Error;
-use crate::{generate_shared_otp_key, is_valid_otp_key};
+use crate::{generate_shared_otp_key, is_valid_otp_key, send_template_email};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgRow;
 use sqlx::{PgPool, Row};
-use zbus::interface;
+use std::collections::HashMap;
 use zbus::object_server::SignalEmitter;
+use zbus::{Connection, interface};
 use zvariant::{OwnedValue, Type, Value};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Value, OwnedValue)]
@@ -89,7 +91,7 @@ impl TwoFactor {
         }
 
         transaction.commit().await?;
-        
+
         self.backup_keys = backup_keys.clone();
         self.backup_keys_changed(emitter).await.unwrap();
         emitter.backup_keys_changed_2(backup_keys).await.unwrap();
@@ -149,6 +151,7 @@ impl TwoFactor {
         &mut self,
         otp_key: &str,
         #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        #[zbus(connection)] connection: &Connection,
     ) -> Result<(), Error> {
         if self.enabled {
             // 2FA should be disabled first
@@ -170,7 +173,24 @@ impl TwoFactor {
 
         self.regenerate_backup_keys_internal(&emitter).await?;
 
-        // TODO: If verified, send the email about turning on 2FA
+        if let Some((email, username, locale)) =
+            user_object(connection, &self.database, self.id, async |user| {
+                if user.verified().await {
+                    Some((user.email().await, user.username().await, user.locale()))
+                } else {
+                    None
+                }
+            })
+            .await?
+        {
+            let _ = send_template_email(
+                "2fa-on",
+                email,
+                &locale,
+                HashMap::from([("user".into(), username)]),
+            )
+            .await;
+        }
 
         Ok(())
     }
@@ -178,6 +198,7 @@ impl TwoFactor {
     pub async fn disable_two_factor_authentication(
         &mut self,
         #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        #[zbus(connection)] connection: &Connection,
     ) -> Result<(), Error> {
         if !self.enabled {
             // 2FA should be enabled first
@@ -193,7 +214,25 @@ impl TwoFactor {
         self.two_factor_enabled_changed(&emitter).await.unwrap();
         emitter.two_factor_enabled_changed_2(false).await.unwrap();
 
-        // TODO: If verified, send the email about turning off 2FA
+
+        if let Some((email, username, locale)) =
+            user_object(connection, &self.database, self.id, async |user| {
+                if user.verified().await {
+                    Some((user.email().await, user.username().await, user.locale()))
+                } else {
+                    None
+                }
+            })
+                .await?
+        {
+            let _ = send_template_email(
+                "2fa-off",
+                email,
+                &locale,
+                HashMap::from([("user".into(), username)]),
+            )
+                .await;
+        }
 
         Ok(())
     }
@@ -201,10 +240,29 @@ impl TwoFactor {
     pub async fn regenerate_backup_keys(
         &mut self,
         #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        #[zbus(connection)] connection: &Connection,
     ) -> Result<(), Error> {
         self.regenerate_backup_keys_internal(&emitter).await?;
 
-        // TODO: If verified, send the email about regenerating backup keys
+
+        if let Some((email, username, locale)) =
+            user_object(connection, &self.database, self.id, async |user| {
+                if user.verified().await {
+                    Some((user.email().await, user.username().await, user.locale()))
+                } else {
+                    None
+                }
+            })
+                .await?
+        {
+            let _ = send_template_email(
+                "2fa-recovery-regenerated",
+                email,
+                &locale,
+                HashMap::from([("user".into(), username)]),
+            )
+                .await;
+        }
 
         Ok(())
     }

@@ -1,0 +1,16 @@
+Hi {user}!
+
+We heard that you might have forgotten your password, so here's one you can use to log in with.
+
+{password}
+
+After logging in with this passsword, you'll be asked to set a new one.
+
+Be speedy though, this password will expire in half an hour. You can request another password reset once that time has passed.
+
+If this wasn't you, don't worry; nothing's changed on your account so far. You can continue to log in with your old password. Just make sure never to give this password to anyone, otherwise they'll be able to take over your account.
+
+Best Regards,
+- Victor Tran
+
+P.S. This email not for you? Reply to this message and we'll sort it out. Thanks!

@@ -1,7 +1,11 @@
+use crate::bus::user_object;
 use crate::error::Error;
-use crate::{generate_hashed_password, verify_hashed_password};
 use crate::validation::{validate_email_address, validate_password, validate_username};
+use crate::{
+    generate_hashed_password, send_template_email, send_verification_email, verify_hashed_password,
+};
 use sqlx::{PgPool, Row};
+use std::collections::HashMap;
 use zbus::interface;
 use zbus::object_server::SignalEmitter;
 use zvariant::{ObjectPath, OwnedObjectPath};
@@ -39,6 +43,10 @@ impl User {
 
     pub fn path(&self) -> ObjectPath<'static> {
         ObjectPath::try_from(self.path.clone()).unwrap()
+    }
+
+    pub fn locale(&self) -> String {
+        "en".to_string()
     }
 }
 
@@ -111,7 +119,7 @@ impl User {
 
         let hashed_password = generate_hashed_password(password, 10000);
 
-        sqlx::query("UPDATE accounts SET password = $1 WHERE id = $2")
+        sqlx::query("UPDATE users SET password = $1 WHERE id = $2")
             .bind(hashed_password)
             .bind(self.id)
             .execute(&self.database)
@@ -119,6 +127,13 @@ impl User {
 
         if self.verified().await {
             // TODO: Send password change email
+            let _ = send_template_email(
+                "passwordchange",
+                self.email.clone(),
+                &self.locale(),
+                HashMap::from([("user".into(), self.username.clone())]),
+            )
+            .await;
         }
 
         Ok(())
@@ -151,9 +166,7 @@ impl User {
     }
 
     pub async fn resend_verification_email(&self) -> Result<(), Error> {
-        // TODO
-
-        Ok(())
+        send_verification_email(&self.database, self.id).await
     }
 
     pub async fn verify_email(
@@ -171,12 +184,12 @@ impl User {
             "DELETE FROM verifications
                      WHERE userid = $1 AND verificationstring = $2 AND expiry > $3",
         )
-            .bind(self.id)
-            .bind(verification_code.to_string())
-            .bind(chrono::Utc::now().timestamp())
-            .execute(&mut *transaction)
-            .await?
-            .rows_affected();
+        .bind(self.id)
+        .bind(verification_code.to_string())
+        .bind(chrono::Utc::now().timestamp())
+        .execute(&mut *transaction)
+        .await?
+        .rows_affected();
 
         if affected_rows == 0 {
             return Err(Error::VerificationCodeIncorrect);
@@ -206,7 +219,8 @@ impl User {
             return Err(Error::InvalidInput);
         }
 
-        let row = sqlx::query("SELECT * FROM users WHERE id=$1").bind(self.id)
+        let row = sqlx::query("SELECT * FROM users WHERE id=$1")
+            .bind(self.id)
             .fetch_one(&self.database)
             .await?;
 
@@ -227,7 +241,11 @@ impl User {
         Ok(())
     }
 
-    pub async fn set_email_verified(&mut self, verified: bool, #[zbus(signal_emitter)] emitter: SignalEmitter<'_>) -> Result<(), Error> {
+    pub async fn set_email_verified(
+        &mut self,
+        verified: bool,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+    ) -> Result<(), Error> {
         sqlx::query("UPDATE users SET verified=$1 WHERE id=$2")
             .bind(verified)
             .bind(self.id)

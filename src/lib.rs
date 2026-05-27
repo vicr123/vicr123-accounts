@@ -1,18 +1,26 @@
+use crate::error::Error;
+use crate::mail_template::MailTemplate;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
+use hmac::{Hmac, KeyInit, Mac};
+use mail_send::SmtpClientBuilder;
+use mail_send::mail_builder::MessageBuilder;
+use mail_send::mail_builder::headers::address::Address;
+use mail_send::smtp::message::IntoMessage;
 use rand::RngExt;
 use rand::distr::{Alphanumeric, SampleString};
-use sha3::Sha3_512;
-use sqlx::PgPool;
-use std::collections::HashMap;
-use hmac::{Hmac, KeyInit, Mac};
 use sha1::Sha1;
+use sha3::Sha3_512;
+use sqlx::{PgPool, Row};
+use std::collections::HashMap;
+use std::env::VarError;
 use zvariant::Value;
 
 pub mod account;
 pub mod accounts_manager;
 mod bus;
 pub mod error;
+pub mod mail_template;
 pub mod token_provisioning;
 pub mod validation;
 
@@ -64,9 +72,37 @@ pub fn generate_salt() -> Box<[u8; 64]> {
     Box::new(rand::rng().random())
 }
 
-pub fn send_verification_email(pool: PgPool, user_id: i32) -> bool {
-    // TODO
-    true
+pub async fn send_verification_email(pool: &PgPool, user_id: i32) -> Result<(), Error> {
+    let user = sqlx::query("SELECT * FROM users WHERE id=$1")
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
+
+    let username = user.try_get::<String, _>("username")?;
+    let email = user.try_get::<String, _>("email")?;
+    let code = format!("{:06}", rand::rng().random_range(0..=999999));
+
+    sqlx::query(
+        "INSERT INTO verifications(userid, verificationstring, expiry)
+                        VALUES ($1, $2, $3)
+                        ON CONFLICT
+                            ON CONSTRAINT pk_verifications
+                                DO UPDATE
+                                    SET verificationstring = $2, expiry = $3",
+    )
+    .bind(user_id)
+    .bind(&code)
+    .bind((chrono::Utc::now() + chrono::Duration::days(10)).timestamp())
+    .execute(pool)
+    .await?;
+
+    send_template_email(
+        "verify",
+        email,
+        "en",
+        HashMap::from([("name".to_string(), username), ("code".to_string(), code)]),
+    )
+    .await
 }
 
 pub fn is_valid_otp_key(otp_key: &str, otp_secret: &str) -> bool {
@@ -94,7 +130,10 @@ fn calculate_otp_key(shared_key: &str, offset: u64) -> String {
         }
     }
 
-    let decoded_key = decoded_key.iter().map(|b| u8::from_be(*b)).collect::<Vec<_>>();
+    let decoded_key = decoded_key
+        .iter()
+        .map(|b| u8::from_be(*b))
+        .collect::<Vec<_>>();
 
     let mut hmac = Hmac::<Sha1>::new_from_slice(&decoded_key).unwrap();
     hmac.update(&offset.to_be_bytes());
@@ -113,8 +152,81 @@ pub fn generate_shared_otp_key() -> String {
     let valid_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     let mut rng = rand::rng();
     (0..32)
-        .map(|_| valid_chars.chars().nth(rng.random_range(0..valid_chars.len())).unwrap())
+        .map(|_| {
+            valid_chars
+                .chars()
+                .nth(rng.random_range(0..valid_chars.len()))
+                .unwrap()
+        })
         .collect()
+}
+
+pub async fn send_template_email<'a>(
+    template_name: &str,
+    recipients: impl Into<Address<'a>>,
+    locale: &str,
+    replacements: HashMap<String, String>,
+) -> Result<(), Error> {
+    let template = MailTemplate::open(template_name, locale, replacements)?;
+
+    let message = MessageBuilder::<'a>::new()
+        .from((
+            std::env::var("SMTP_SENDER_NAME").map_err(|_| Error::EmailError(None))?,
+            std::env::var("SMTP_SENDER_EMAIL").map_err(|_| Error::EmailError(None))?,
+        ))
+        .to(recipients)
+        .subject(template.subject())
+        .html_body(template.html_part()?)
+        .text_body(template.text_part()?);
+
+    send_mail_message(message).await
+}
+
+pub async fn send_mail_message<'a>(message: impl IntoMessage<'a>) -> Result<(), Error> {
+    let mut client_builder = SmtpClientBuilder::new(
+        std::env::var("SMTP_HOST").map_err(|_| Error::EmailError(None))?,
+        match std::env::var("SMTP_PORT") {
+            Ok(port) => port,
+            Err(VarError::NotPresent) => "25".into(),
+            Err(_) => return Err(Error::EmailError(None)),
+        }
+        .parse()
+        .map_err(|_| Error::EmailError(None))?,
+    )
+    .map_err(|_| Error::EmailError(None))?
+    .implicit_tls(false);
+
+    if let Ok(username) = std::env::var("SMTP_USERNAME")
+        && let Ok(password) = std::env::var("SMTP_PASSWORD")
+    {
+        client_builder = client_builder.credentials((username, password));
+    }
+    
+    let security_type = std::env::var("SMTP_SECURITY");
+    let security_type = match &security_type {
+        Ok(security) => Some(security.as_str()),
+        Err(VarError::NotPresent) => None,
+        Err(_) => return Err(Error::EmailError(None)),
+    };
+
+    match security_type {
+        Some("STARTTLS") => {
+            let mut client = client_builder.connect().await?;
+            client.send(message).await?;
+        },
+        Some("true") => {
+            client_builder = client_builder.implicit_tls(true);
+            let mut client = client_builder.connect().await?;
+            client.send(message).await?;
+        },
+        None => {
+            let mut client = client_builder.connect_plain().await?;
+            client.send(message).await?;
+        },
+        _ => return Err(Error::EmailError(None)),
+    };
+
+    Ok(())
 }
 
 #[test]
