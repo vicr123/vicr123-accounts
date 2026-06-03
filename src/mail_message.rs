@@ -1,8 +1,8 @@
 use crate::error::Error;
 use crate::send_mail_message;
 use mail_send::mail_builder::MessageBuilder;
-use zbus::{Connection, interface};
-use zvariant::{ObjectPath, OwnedObjectPath};
+use zbus::{interface, Connection};
+use zvariant::OwnedObjectPath;
 
 pub struct MailMessage {
     to: String,

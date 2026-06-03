@@ -1,13 +1,13 @@
-use std::sync::{Arc, LazyLock};
-use crate::error::Error;
-use sqlx::{PgPool, Row};
-use tokio::sync::RwLock;
-use zbus::Connection;
-use zbus::object_server::{InterfaceDeref, InterfaceRef};
-use zvariant::ObjectPath;
 use crate::account::register_account_interfaces;
 use crate::account::user::User;
+use crate::error::Error;
 use crate::mail_message::MailMessage;
+use sqlx::{PgPool, Row};
+use std::sync::{Arc, LazyLock};
+use tokio::sync::RwLock;
+use zbus::object_server::InterfaceDeref;
+use zbus::Connection;
+use zvariant::ObjectPath;
 
 static MAIL_MESSAGE_COUNTER: LazyLock<Arc<RwLock<u32>>> = LazyLock::new(|| Arc::new(RwLock::new(0)));
 

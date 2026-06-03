@@ -1,4 +1,4 @@
-use crate::bus::{create_mail_message, user_object};
+use crate::bus::{create_mail_message};
 use crate::error::Error;
 use crate::validation::{validate_email_address, validate_password, validate_username};
 use crate::{
@@ -8,7 +8,7 @@ use sqlx::{PgPool, Row};
 use std::collections::HashMap;
 use zbus::object_server::SignalEmitter;
 use zbus::{Connection, interface};
-use zvariant::{ObjectPath, OwnedObjectPath};
+use zvariant::{ObjectPath};
 
 pub struct User {
     id: i32,

@@ -5,10 +5,12 @@ use crate::error::Error;
 use sqlx::PgPool;
 use zbus::Connection;
 use zvariant::ObjectPath;
+use crate::account::fido2::Fido2;
 
 pub mod password_reset;
 pub mod two_factor;
 pub mod user;
+pub mod fido2;
 
 pub async fn register_account_interfaces(
     path: &ObjectPath<'_>,
@@ -22,7 +24,7 @@ pub async fn register_account_interfaces(
         .await
         .expect("Failed to register user interface");
 
-    let two_factor_interface = TwoFactor::new(id, database.clone(), path.to_string()).await?;
+    let two_factor_interface = TwoFactor::new(id, database.clone()).await?;
     bus.object_server()
         .at(path, two_factor_interface)
         .await
@@ -33,6 +35,12 @@ pub async fn register_account_interfaces(
         .at(path, password_reset_interface)
         .await
         .expect("Failed to register password reset interface");
+
+    let fido_2_interface = Fido2::new(id, database.clone()).await?;
+    bus.object_server()
+        .at(path, fido_2_interface)
+        .await
+        .expect("Failed to register FIDO2 interface");
 
     Ok(())
 }

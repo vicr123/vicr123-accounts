@@ -1,10 +1,8 @@
-use crate::account::user::UserSignals;
 use crate::bus::user_object;
 use crate::error::Error;
 use crate::{generate_shared_otp_key, is_valid_otp_key, send_template_email};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use sqlx::postgres::PgRow;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
 use zbus::object_server::SignalEmitter;
@@ -25,11 +23,10 @@ pub struct TwoFactor {
     backup_keys: Vec<OwnedOtpBackupKeys>,
 
     database: PgPool,
-    path: String,
 }
 
 impl TwoFactor {
-    pub async fn new(id: i32, database: PgPool, path: String) -> Result<Self, Error> {
+    pub async fn new(id: i32, database: PgPool) -> Result<Self, Error> {
         let (enabled, secret_key) = match sqlx::query("SELECT * FROM otp WHERE userid=$1")
             .bind(id)
             .fetch_one(&database)
@@ -51,7 +48,6 @@ impl TwoFactor {
             secret_key,
             backup_keys,
             database,
-            path,
         })
     }
 

@@ -2,7 +2,7 @@ use crate::error::Error;
 use crate::{VariantMap, generate_hashed_password, send_template_email};
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
-use jwt_simple::prelude::{Deserialize, Serialize};
+use jwt_simple::prelude::Serialize;
 use rand::RngExt;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;

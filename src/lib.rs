@@ -8,7 +8,6 @@ use mail_send::mail_builder::MessageBuilder;
 use mail_send::mail_builder::headers::address::Address;
 use mail_send::smtp::message::IntoMessage;
 use rand::RngExt;
-use rand::distr::{Alphanumeric, SampleString};
 use sha1::Sha1;
 use sha3::Sha3_512;
 use sqlx::{PgPool, Row};
@@ -24,6 +23,7 @@ pub mod mail_template;
 pub mod token_provisioning;
 pub mod validation;
 mod mail_message;
+pub mod fido;
 
 pub type VariantMap<'a> = HashMap<String, Value<'a>>;
 
@@ -232,6 +232,8 @@ pub async fn send_mail_message<'a>(message: impl IntoMessage<'a>) -> Result<(), 
 
 #[test]
 fn test_passwords() {
+    use rand::distr::{Alphanumeric, SampleString};
+
     for i in 0..10 {
         let password =
             Alphanumeric.sample_string(&mut rand::rng(), rand::rng().random_range(8..=32));

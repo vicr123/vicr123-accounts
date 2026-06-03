@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-use mail_send::mail_builder::MessageBuilder;
+use crate::error::Error;
 use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
-use crate::error::Error;
+use std::collections::HashMap;
 
 #[derive(Embed)]
 #[folder = "src/mail"]

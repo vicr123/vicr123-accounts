@@ -1,17 +1,12 @@
 use crate::bus::{create_mail_message, user_object};
 use crate::error::Error;
-use crate::token_provisioning::{
-    TokenProvisioningManager, TokenProvisioningPurpose, VerifiedToken,
-};
+use crate::token_provisioning::{TokenProvisioningManager, TokenProvisioningPurpose};
 use crate::validation::{validate_email_address, validate_password, validate_username};
 use crate::{VariantMap, generate_hashed_password, generate_salt, send_verification_email};
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use sqlx::{PgPool, Row};
-use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use zbus::export::ordered_stream::OrderedStreamExt;
 use zbus::zvariant::ObjectPath;
 use zbus::{Connection, interface};
 use zvariant::{Str, Value};
@@ -156,8 +151,13 @@ impl AccountsManager {
         Ok(new_token)
     }
 
-    async fn user_for_token(&self, token: &str, #[zbus(connection)] connection: &Connection) -> Result<ObjectPath, Error> {
-        self.user_for_token_with_purpose(token, "login", connection).await
+    async fn user_for_token(
+        &self,
+        token: &str,
+        #[zbus(connection)] connection: &Connection,
+    ) -> Result<ObjectPath, Error> {
+        self.user_for_token_with_purpose(token, "login", connection)
+            .await
     }
 
     async fn user_for_token_with_purpose(

@@ -1,13 +1,10 @@
 use crate::error::Error;
-use crate::{generate_salt, VariantMap};
-use base64::prelude::BASE64_STANDARD;
+use crate::{VariantMap, generate_salt};
 use base64::Engine;
-use hmac::KeyInit;
+use base64::prelude::BASE64_STANDARD;
 use jwt_simple::algorithms::{HS256Key, MACLike};
-use jwt_simple::claims::{Claims, NoCustomClaims};
+use jwt_simple::claims::Claims;
 use jwt_simple::prelude::Duration;
-use rand::distr::SampleString;
-use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
 use zbus::Connection;
@@ -18,7 +15,7 @@ pub struct TokenProvisioningManager {
     bus: Connection,
     database: PgPool,
 
-    jwt_key: HS256Key
+    jwt_key: HS256Key,
 }
 
 pub enum ProvisionResult<'a> {
@@ -115,9 +112,11 @@ impl TokenProvisioningManager {
                     }
                     TokenProvisioningPurpose::AccountModification => {
                         // Create a short-lived JWT that we can use to perform account modification actions
-                        let claims = Claims::with_custom_claims(AccountModificationTokenClaims {
-                            purpose,
-                        }, Duration::from_hours(1)).with_subject(user_id);
+                        let claims = Claims::with_custom_claims(
+                            AccountModificationTokenClaims { purpose },
+                            Duration::from_hours(1),
+                        )
+                        .with_subject(user_id);
                         let token = self.jwt_key.authenticate(claims).unwrap();
 
                         let mut map = VariantMap::new();
@@ -129,14 +128,15 @@ impl TokenProvisioningManager {
                     }
                 }
             }
-            ProvisionResult::Challenge(challenge) => {
-                Ok(challenge)
-            }
+            ProvisionResult::Challenge(challenge) => Ok(challenge),
         }
     }
 
     pub async fn verify_token(&self, token: &str) -> Result<Option<VerifiedToken>, Error> {
-        if let Ok(claims) = self.jwt_key.verify_token::<AccountModificationTokenClaims>(token, None) {
+        if let Ok(claims) = self
+            .jwt_key
+            .verify_token::<AccountModificationTokenClaims>(token, None)
+        {
             let Some(subject) = claims.subject else {
                 return Ok(None);
             };
@@ -148,7 +148,7 @@ impl TokenProvisioningManager {
             return Ok(Some(VerifiedToken {
                 user_id: subject,
                 purpose: claims.custom.purpose,
-            }))
+            }));
         }
 
         // Now read the database for tokens
