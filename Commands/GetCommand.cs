@@ -25,6 +25,8 @@ public static class GetCommand
             Origins = expectOrigins.EnumerateArray().Select(x => x.GetString()).ToHashSet()
         });
 
+        response.Response.UserHandle = null;
+
         var cred = existingCreds.Single(x => x.CredentialId.AsSpan().SequenceEqual(response.Id));
 
         var result = await fido2.MakeAssertionAsync(response, pregetOptions, cred.PublicKey, cred.Counter,
