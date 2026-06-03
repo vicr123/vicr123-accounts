@@ -1,11 +1,12 @@
-use std::env::VarError;
 use crate::error::Error;
 use jwt_simple::prelude::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
+use std::env::VarError;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct SecurityKey {
-    pub name: String,
+    pub name: Option<String>,
     pub user_id: i32,
     pub public_key: String,
     pub counter: i32,
@@ -38,7 +39,7 @@ pub async fn fido_creds_for_user(
 
     Ok(records
         .iter()
-        .filter_map(|record| record.try_get::<String, _>("data").ok())
-        .filter_map(|data| serde_json::from_str::<SecurityKey>(&data).ok())
+        .filter_map(|record| record.try_get::<Vec<u8>, _>("data").ok())
+        .filter_map(|data| serde_json::from_slice::<SecurityKey>(&data).ok())
         .collect())
 }

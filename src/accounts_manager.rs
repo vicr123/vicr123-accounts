@@ -217,7 +217,8 @@ impl AccountsManager {
         } else {
             Ok(self
                 .token_provisioning_manager
-                .available_methods(id, application, purpose))
+                .available_methods(id, application, purpose)
+                .await)
         }
     }
 

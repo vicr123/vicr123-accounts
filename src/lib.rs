@@ -19,11 +19,11 @@ pub mod account;
 pub mod accounts_manager;
 mod bus;
 pub mod error;
+pub mod fido;
+mod mail_message;
 pub mod mail_template;
 pub mod token_provisioning;
 pub mod validation;
-mod mail_message;
-pub mod fido;
 
 pub type VariantMap<'a> = HashMap<String, Value<'a>>;
 
@@ -214,20 +214,40 @@ pub async fn send_mail_message<'a>(message: impl IntoMessage<'a>) -> Result<(), 
         Some("STARTTLS") => {
             let mut client = client_builder.connect().await?;
             client.send(message).await?;
-        },
+        }
         Some("true") => {
             client_builder = client_builder.implicit_tls(true);
             let mut client = client_builder.connect().await?;
             client.send(message).await?;
-        },
+        }
         None => {
             let mut client = client_builder.connect_plain().await?;
             client.send(message).await?;
-        },
+        }
         _ => return Err(Error::EmailError(None)),
     };
 
     Ok(())
+}
+
+pub fn extract_string(map: &VariantMap, key: &str) -> Option<String> {
+    map.get(key).and_then(|value| match value {
+        Value::Str(s) => Some(s.to_string()),
+        _ => None,
+    })
+}
+pub fn extract_bytes(map: &VariantMap, key: &str) -> Option<Vec<u8>> {
+    map.get(key).and_then(|value| match value {
+        Value::Array(s) => Some(
+            s.iter()
+                .filter_map(|v| match v {
+                    Value::U8(b) => Some(*b),
+                    _ => None,
+                })
+                .collect(),
+        ),
+        _ => None,
+    })
 }
 
 #[test]

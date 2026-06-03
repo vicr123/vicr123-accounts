@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
 use zbus::Connection;
 
+pub mod fido_provisioning_method;
 pub mod password_provisioning_method;
 
 pub struct TokenProvisioningManager {
@@ -81,6 +82,15 @@ impl TokenProvisioningManager {
         let result = match method_name {
             "password" => {
                 password_provisioning_method::provision(
+                    &self.bus,
+                    &self.database,
+                    options.clone(),
+                    purpose,
+                )
+                .await?
+            }
+            "fido" => {
+                fido_provisioning_method::provision(
                     &self.bus,
                     &self.database,
                     options.clone(),
@@ -169,14 +179,19 @@ impl TokenProvisioningManager {
         }
     }
 
-    pub fn available_methods(
+    pub async fn available_methods(
         &self,
         user_id: i32,
         application: &str,
         purpose: impl Into<TokenProvisioningPurpose>,
     ) -> Vec<&'static str> {
         let purpose = purpose.into();
-        let available = vec!["password"];
+        let mut available = vec!["password"];
+        if let Ok(true) =
+            fido_provisioning_method::available(&self.database, user_id, application, purpose).await
+        {
+            available.push("fido");
+        }
         available
     }
 }
