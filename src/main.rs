@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let bus = match std::env::var("DBUS_BUS") {
         Ok(path) if path == "dedicated" => {
             std::fs::create_dir_all("/var/vicr123-accounts")?;
-            
+
             let mut config_file = tempfile::NamedTempFile::new()?;
             config_file.write_all(include_bytes!("dbus-config.conf"))?;
 
@@ -84,7 +84,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Registered on the bus as com.vicr123.accounts");
 
-    loop {
-        std::future::pending::<()>().await;
-    }
+    tokio::signal::ctrl_c().await?;
+
+    Ok(())
 }
