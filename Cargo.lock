@@ -3552,6 +3552,7 @@ dependencies = [
  "sha1",
  "sha3",
  "sqlx",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",

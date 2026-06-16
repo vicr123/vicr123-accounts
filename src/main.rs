@@ -1,6 +1,10 @@
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
+use std::env::VarError;
 use std::error::Error;
-use tracing::info;
+use std::io::Write;
+use std::process::Command;
+use std::str::FromStr;
+use tracing::{error, info};
 use vicr123_accounts::accounts_manager::AccountsManager;
 
 #[tokio::main]
@@ -36,7 +40,40 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .await?;
 
-    let bus = zbus::connection::Builder::session()?.build().await?;
+    let bus = match std::env::var("DBUS_BUS") {
+        Ok(path) if path == "dedicated" => {
+            std::fs::create_dir_all("/var/vicr123-accounts")?;
+            
+            let mut config_file = tempfile::NamedTempFile::new()?;
+            config_file.write_all(include_bytes!("dbus-config.conf"))?;
+
+            let command = Box::new(
+                Command::new("dbus-daemon")
+                    .arg("--nofork")
+                    .arg(format!("--config-file={}", config_file.path().display()))
+                    .spawn()?,
+            );
+            Box::leak(command);
+
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+            zbus::connection::Builder::address(zbus::address::Address::from_str(
+                "unix:path=/var/vicr123-accounts/vicr123-accounts-bus",
+            )?)?
+            .build()
+            .await?
+        }
+        Ok(path) => {
+            zbus::connection::Builder::address(zbus::address::Address::from_str(&path)?)?
+                .build()
+                .await?
+        }
+        Err(VarError::NotPresent) => zbus::connection::Builder::session()?.build().await?,
+        Err(e) => {
+            error!("Invalid value for DBUS_BUS");
+            return Err(Box::new(e) as Box<dyn Error>);
+        }
+    };
 
     let manager = AccountsManager::new(database, bus.clone());
     bus.object_server()

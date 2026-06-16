@@ -7,17 +7,16 @@ use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use serde_json::{Map, Value};
 use sqlx::{PgPool, Row};
-use std::collections::HashMap;
 use std::process::Stdio;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use zbus::Connection;
 
 pub async fn provision(
-    bus: &Connection,
+    _bus: &Connection,
     database: &PgPool,
     options: VariantMap<'_>,
-    purpose: TokenProvisioningPurpose,
+    _purpose: TokenProvisioningPurpose,
 ) -> Result<ProvisionResult<'static>, Error> {
     let username = extract_string(&options, "username").ok_or(Error::InvalidInput)?;
     let application = extract_string(&options, "application").ok_or(Error::InvalidInput)?;
@@ -49,8 +48,6 @@ pub async fn provision(
         let response = extract_bytes(&options, "response").ok_or(Error::InvalidInput)?;
         let preget_options = extract_bytes(&options, "pregetOptions").ok_or(Error::InvalidInput)?;
 
-        let x = String::from_utf8_lossy(&response);
-
         let mut command = Command::new(helper_path().map_err(|_| Error::FidoSupportUnavailable)?);
         command
             .args(["get", "--rpname", &rp_name, "--rpid", &rp_id])
@@ -74,8 +71,6 @@ pub async fn provision(
             "pregetOptions".into(),
             String::from_utf8_lossy(&preget_options).into(),
         );
-
-        let p = serde_json::to_string(&Value::from(payload.clone())).unwrap();
 
         let mut child = command.spawn().map_err(|_| Error::FidoSupportUnavailable)?;
         let mut stdin = child.stdin.take().unwrap();
